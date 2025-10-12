@@ -185,14 +185,33 @@ class AuthManager {
 
     async registerUser(username, email, password) {
         try {
+            console.log('Starting registration process...');
+            console.log('Username:', username);
+            console.log('Email:', email);
+            console.log('Supabase URL:', this.supabaseUrl);
+            console.log('API Key available:', !!this.apiKey);
+            
             // Check if username or email already exists
+            console.log('Checking if user exists...');
             const existingUser = await this.checkUserExists(username, email);
             if (existingUser) {
                 throw new Error('User already exists');
             }
+            console.log('User does not exist, proceeding with registration...');
 
             // Hash the password
+            console.log('Hashing password...');
             const passwordHash = await this.hashPassword(password);
+            console.log('Password hashed successfully');
+            
+            const requestBody = {
+                username: username,
+                email: email,
+                password_hash: passwordHash
+            };
+            
+            console.log('Sending registration request...');
+            console.log('Request body:', { ...requestBody, password_hash: '[HIDDEN]' });
             
             const response = await fetch(`${this.supabaseUrl}/rest/v1/users`, {
                 method: 'POST',
@@ -202,18 +221,19 @@ class AuthManager {
                     'Content-Type': 'application/json',
                     'Prefer': 'return=minimal'
                 },
-                body: JSON.stringify({
-                    username: username,
-                    email: email,
-                    password_hash: passwordHash
-                })
+                body: JSON.stringify(requestBody)
             });
+
+            console.log('Response status:', response.status);
+            console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
             if (!response.ok) {
                 const errorText = await response.text();
+                console.error('Registration failed with response:', errorText);
                 throw new Error(`Registration failed: ${errorText}`);
             }
 
+            console.log('Registration successful!');
             return { username, email, id: Date.now() }; // Return user object
         } catch (error) {
             console.error('Registration error:', error);
@@ -223,7 +243,10 @@ class AuthManager {
 
     async checkUserExists(username, email) {
         try {
-            const response = await fetch(`${this.supabaseUrl}/rest/v1/users?or=(username.eq.${username},email.eq.${email})&select=username,email`, {
+            const url = `${this.supabaseUrl}/rest/v1/users?or=(username.eq.${username},email.eq.${email})&select=username,email`;
+            console.log('Checking user exists with URL:', url);
+            
+            const response = await fetch(url, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${this.apiKey}`,
@@ -232,14 +255,20 @@ class AuthManager {
                 }
             });
 
+            console.log('Check user exists response status:', response.status);
+
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                const errorText = await response.text();
+                console.error('Check user exists failed:', errorText);
+                throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
             }
 
             const users = await response.json();
+            console.log('Found users:', users);
             return users.length > 0;
         } catch (error) {
             console.error('Check user exists error:', error);
+            // If there's an error checking (like table doesn't exist), assume user doesn't exist
             return false;
         }
     }
