@@ -5,6 +5,10 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Middleware to parse JSON bodies
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 // Add error handling middleware
 app.use((err, req, res, next) => {
     console.error('Server error:', err);
@@ -118,7 +122,26 @@ app.get('/health', (req, res) => {
 // Dodo Payments API endpoint (server-side to avoid CORS)
 app.post('/api/create-checkout', async (req, res) => {
     try {
+        console.log('Received request body:', req.body);
+        console.log('Request headers:', req.headers);
+        
+        // Check if body exists and has required fields
+        if (!req.body || typeof req.body !== 'object') {
+            return res.status(400).json({ 
+                error: 'Invalid request body',
+                details: 'Request body is missing or invalid'
+            });
+        }
+        
         const { user_id, username, email, return_url } = req.body;
+        
+        // Validate required fields
+        if (!user_id || !username) {
+            return res.status(400).json({ 
+                error: 'Missing required fields',
+                details: 'user_id and username are required'
+            });
+        }
         
         console.log('Creating Dodo Payments checkout session for user:', username);
         
