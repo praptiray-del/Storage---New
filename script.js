@@ -174,7 +174,8 @@ class FileUploadApp {
             .replace(/[^a-zA-Z0-9._-]/g, '_')  // Replace special chars with underscore
             .replace(/_{2,}/g, '_')            // Replace multiple underscores with single
             .replace(/^_|_$/g, '')             // Remove leading/trailing underscores
-            .toLowerCase();                    // Convert to lowercase for consistency
+            .toLowerCase()                     // Convert to lowercase for consistency
+            .substring(0, 100);                // Limit length to prevent issues
     }
 
     showFileInfo() {
@@ -210,9 +211,13 @@ class FileUploadApp {
         } catch (error) {
             console.error('Upload error:', error);
             
-            // Show specific error message for bucket not found
+            // Show specific error message for different error types
             if (error.message.includes('not found')) {
                 this.showError(`Storage bucket not found. Please create a bucket named "uploads" in your Supabase dashboard. Go to Storage → Buckets → New Bucket.`);
+            } else if (error.message.includes('row-level security policy')) {
+                this.showError(`Upload blocked by security policy. Please check your Supabase storage policies. Go to Storage → Policies and allow anon access to the uploads bucket.`);
+            } else if (error.message.includes('Unauthorized')) {
+                this.showError(`Upload unauthorized. Please check your Supabase storage policies. Go to Storage → Policies and create a policy allowing anon uploads.`);
             } else {
                 this.showError(`Upload failed: ${error.message}`);
             }
@@ -244,6 +249,13 @@ class FileUploadApp {
                 console.log('5. Click "Create bucket"');
                 
                 throw new Error('Storage bucket "uploads" not found. Please create it manually in your Supabase dashboard.');
+            } else if (response.status === 400) {
+                console.warn('⚠️ Bucket check returned 400 - this might be due to RLS policies');
+                console.log('📋 Please check your storage policies:');
+                console.log('1. Go to Storage → Policies');
+                console.log('2. Make sure there are policies allowing anon access');
+                console.log('3. Or disable RLS for storage.objects table');
+                // Continue anyway - the upload might still work
             } else if (!response.ok) {
                 console.warn('Could not check bucket status:', response.status);
                 // Continue anyway
