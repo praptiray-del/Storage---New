@@ -198,7 +198,13 @@ class FileUploadApp {
             this.showSuccess();
         } catch (error) {
             console.error('Upload error:', error);
-            this.showError(`Upload failed: ${error.message}`);
+            
+            // Show specific error message for bucket not found
+            if (error.message.includes('not found')) {
+                this.showError(`Storage bucket not found. Please create a bucket named "uploads" in your Supabase dashboard. Go to Storage → Buckets → New Bucket.`);
+            } else {
+                this.showError(`Upload failed: ${error.message}`);
+            }
         } finally {
             this.submitBtn.disabled = false;
         }
@@ -218,37 +224,27 @@ class FileUploadApp {
             });
 
             if (response.status === 404) {
-                // Bucket doesn't exist, create it
-                console.log('Creating bucket:', bucketName);
-                const createResponse = await fetch(`${this.supabaseUrl}/storage/v1/bucket`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${this.apiKey}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        id: bucketName,
-                        name: bucketName,
-                        public: true
-                    })
-                });
-
-                if (!createResponse.ok) {
-                    const errorText = await createResponse.text();
-                    console.warn('Could not create bucket:', errorText);
-                    // Continue anyway, the bucket might already exist or be created by admin
-                } else {
-                    console.log('Bucket created successfully');
-                }
+                console.error('❌ Bucket "uploads" not found!');
+                console.log('📋 Please create the bucket manually:');
+                console.log('1. Go to your Supabase Dashboard');
+                console.log('2. Navigate to Storage → Buckets');
+                console.log('3. Click "New Bucket"');
+                console.log('4. Name it "uploads" and make it public');
+                console.log('5. Click "Create bucket"');
+                
+                throw new Error('Storage bucket "uploads" not found. Please create it manually in your Supabase dashboard.');
             } else if (!response.ok) {
                 console.warn('Could not check bucket status:', response.status);
                 // Continue anyway
             } else {
-                console.log('Bucket exists');
+                console.log('✅ Bucket "uploads" exists');
             }
         } catch (error) {
-            console.warn('Error checking/creating bucket:', error);
-            // Continue anyway, the upload might still work
+            if (error.message.includes('not found')) {
+                throw error; // Re-throw bucket not found errors
+            }
+            console.warn('Error checking bucket:', error);
+            // Continue anyway for other errors
         }
     }
 
