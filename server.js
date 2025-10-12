@@ -133,7 +133,7 @@ app.post('/api/create-checkout', async (req, res) => {
             });
         }
         
-        const { user_id, username, email, return_url, checkout_data } = req.body;
+        const { user_id, username, email, return_url } = req.body;
         
         // Validate required fields
         if (!user_id || !username) {
@@ -161,31 +161,6 @@ app.post('/api/create-checkout', async (req, res) => {
         // Generate unique checkout ID for tracking
         const checkoutId = `checkout_${user_id}_${Date.now()}`;
         
-        // Use form data if available, otherwise use defaults
-        const customerData = checkout_data ? {
-            email: checkout_data.customerEmail || email || 'user@example.com',
-            name: checkout_data.customerName || username,
-            phone_number: checkout_data.customerPhone || '+1234567890'
-        } : {
-            email: email || 'user@example.com',
-            name: username,
-            phone_number: '+1234567890'
-        };
-
-        const billingData = checkout_data ? {
-            street: checkout_data.billingStreet || '123 Main St',
-            city: checkout_data.billingCity || 'San Francisco',
-            state: checkout_data.billingState || 'CA',
-            country: checkout_data.billingCountry || 'US',
-            zipcode: checkout_data.billingZipcode || '94102'
-        } : {
-            street: '123 Main St',
-            city: 'San Francisco',
-            state: 'CA',
-            country: 'US',
-            zipcode: '94102'
-        };
-
         const requestBody = {
             product_cart: [
                 {
@@ -193,15 +168,21 @@ app.post('/api/create-checkout', async (req, res) => {
                     quantity: 1
                 }
             ],
-            customer: customerData,
-            billing_address: billingData,
+            customer: {
+                email: email || 'user@example.com',
+                name: username
+                // Phone and other details will be collected by Dodo Payments checkout
+            },
+            billing_address: {
+                // Basic address - Dodo Payments will collect full details
+                country: 'US'
+            },
             return_url: return_url,
             metadata: {
                 user_id: user_id,
                 username: username,
                 checkout_id: checkoutId,
-                source: 'file_upload_app',
-                form_data: checkout_data ? 'collected' : 'default'
+                source: 'file_upload_app'
             }
         };
         

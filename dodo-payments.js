@@ -93,7 +93,7 @@ class DodoPayments {
         return '';
     }
 
-    async createCheckoutSession(checkoutData = null) {
+    async createCheckoutSession() {
         if (!this.authManager || !this.authManager.isUserAuthenticated()) {
             throw new Error('User must be logged in to make a payment');
         }
@@ -109,8 +109,7 @@ class DodoPayments {
                 user_id: user.id,
                 username: user.username,
                 email: user.email || 'user@example.com',
-                return_url: returnUrl,
-                checkout_data: checkoutData // Include form data if provided
+                return_url: returnUrl
             };
 
             console.log('Sending request to server endpoint...');
@@ -148,21 +147,6 @@ class DodoPayments {
                 name: error.name
             });
             throw error;
-        }
-    }
-
-    async initiatePaymentWithData(checkoutData) {
-        try {
-            console.log('Initiating payment with form data...');
-            
-            const session = await this.createCheckoutSession(checkoutData);
-            
-            // Redirect user to Dodo Payments checkout
-            window.location.href = session.checkout_url;
-            
-        } catch (error) {
-            console.error('Payment initiation failed:', error);
-            this.showPaymentError(error.message);
         }
     }
 
