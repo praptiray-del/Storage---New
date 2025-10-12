@@ -300,16 +300,10 @@ class FileUploadApp {
         console.log('Uploading to:', uploadUrl);
         console.log('File size:', file.size);
         
-        // Get the current user for authentication
-        const user = this.authManager ? this.authManager.getCurrentUser() : null;
-        const authToken = user ? `Bearer ${user.id}` : `Bearer ${this.apiKey}`;
-        
-        console.log('Using auth token for upload:', user ? 'User ID' : 'API Key');
-        
         const response = await fetch(uploadUrl, {
             method: 'POST',
             headers: {
-                'Authorization': authToken,
+                'Authorization': `Bearer ${this.apiKey}`,
                 'Content-Type': file.type || 'application/octet-stream'
             },
             body: file
@@ -336,11 +330,24 @@ class FileUploadApp {
 
     async trackUserUpload(file, fileName) {
         if (!this.authManager || !this.authManager.isUserAuthenticated()) {
+            console.log('Skipping database tracking - user not authenticated');
             return; // Don't track if user is not authenticated
         }
 
         try {
             const user = this.authManager.getCurrentUser();
+            console.log('Tracking upload for user:', user);
+            
+            const trackingData = {
+                user_id: user.id,
+                file_name: file.name,
+                file_size: file.size,
+                file_type: file.type,
+                storage_path: `uploads/${fileName}`
+            };
+            
+            console.log('Sending tracking data:', trackingData);
+            
             const response = await fetch(`${this.supabaseUrl}/rest/v1/user_uploads`, {
                 method: 'POST',
                 headers: {
@@ -349,22 +356,19 @@ class FileUploadApp {
                     'Content-Type': 'application/json',
                     'Prefer': 'return=minimal'
                 },
-                body: JSON.stringify({
-                    user_id: user.id,
-                    file_name: file.name,
-                    file_size: file.size,
-                    file_type: file.type,
-                    storage_path: `uploads/${fileName}`
-                })
+                body: JSON.stringify(trackingData)
             });
 
+            console.log('Tracking response status:', response.status);
+
             if (!response.ok) {
-                console.warn('Failed to track upload in database:', response.status);
+                const errorText = await response.text();
+                console.error('Failed to track upload in database:', response.status, errorText);
             } else {
-                console.log('Upload tracked in database successfully');
+                console.log('✅ Upload tracked in database successfully');
             }
         } catch (error) {
-            console.warn('Error tracking upload:', error);
+            console.error('Error tracking upload:', error);
             // Don't throw error - upload was successful, just tracking failed
         }
     }
