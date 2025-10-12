@@ -1,0 +1,26 @@
+{
+  "name": "file-upload-app",
+  "version": "1.0.0",
+  "description": "A modern file upload web app with Supabase storage integration",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "file-upload",
+    "supabase",
+    "storage",
+    "web-app",
+    "nodejs",
+    "express"
+  ],
+  "author": "praptiray-del",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

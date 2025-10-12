@@ -43,11 +43,39 @@ class FileUploadApp {
     }
 
     loadApiKey() {
-        // Try to get API key from environment variables or prompt user
-        // For now, we'll prompt the user to enter it
+        // Try to get API key from environment variables first
+        // This will work when deployed on Render or other platforms
+        this.apiKey = this.getApiKeyFromEnvironment();
+        
+        // If no environment variable is found, prompt user
         if (!this.apiKey) {
             this.promptForApiKey();
         }
+    }
+
+    getApiKeyFromEnvironment() {
+        // Check for environment variables that might be available
+        // These are common ways environment variables are exposed in web apps
+        
+        // Method 1: Check if running in a server environment
+        if (typeof process !== 'undefined' && process.env) {
+            return process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+        }
+        
+        // Method 2: Check for global variables (common in some deployment platforms)
+        if (typeof window !== 'undefined') {
+            return window.SUPABASE_ANON_KEY || window.SUPABASE_SERVICE_ROLE_KEY;
+        }
+        
+        // Method 3: Check for meta tags (if set in HTML)
+        if (typeof document !== 'undefined') {
+            const metaKey = document.querySelector('meta[name="supabase-api-key"]');
+            if (metaKey) {
+                return metaKey.getAttribute('content');
+            }
+        }
+        
+        return null;
     }
 
     promptForApiKey() {
@@ -55,7 +83,7 @@ class FileUploadApp {
         if (apiKey) {
             this.apiKey = apiKey;
         } else {
-            this.showError('API key is required to upload files.');
+            this.showError('API key is required to upload files. Please set SUPABASE_ANON_KEY or SUPABASE_SERVICE_ROLE_KEY environment variable.');
         }
     }
 

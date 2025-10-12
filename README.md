@@ -20,24 +20,75 @@ A modern, responsive web application for uploading files to Supabase storage. Us
 2. Navigate to Settings > API
 3. Copy your `anon` or `service_role` key
 
-### 2. Configure the App
+### 2. Local Development
 
-The app will prompt you for your API key when you first try to upload a file. You can also set it programmatically by modifying the `script.js` file.
+#### Option A: Using Node.js Server (Recommended)
+```bash
+# Install dependencies
+npm install
 
-### 3. Run the Application
+# Start the server
+npm start
+```
 
-1. Open `index.html` in your web browser
-2. Or serve it using a local server:
-   ```bash
-   # Using Python
-   python -m http.server 8000
-   
-   # Using Node.js (if you have http-server installed)
-   npx http-server
-   
-   # Using PHP
-   php -S localhost:8000
-   ```
+#### Option B: Static File Serving
+```bash
+# Using Python
+python -m http.server 8000
+
+# Using Node.js (if you have http-server installed)
+npx http-server
+
+# Using PHP
+php -S localhost:8000
+```
+
+### 3. Deploy to Render
+
+#### Step 1: Prepare Your Repository
+Make sure your code is pushed to GitHub (already done ✅)
+
+#### Step 2: Create a New Web Service on Render
+1. Go to [Render Dashboard](https://dashboard.render.com)
+2. Click "New +" → "Web Service"
+3. Connect your GitHub repository: `praptiray-del/storage`
+4. Configure the service:
+   - **Name**: `file-upload-app` (or your preferred name)
+   - **Environment**: `Node`
+   - **Build Command**: `npm install`
+   - **Start Command**: `npm start`
+   - **Instance Type**: `Free` (or upgrade as needed)
+
+#### Step 3: Set Environment Variables
+In the Render dashboard, go to your service → Environment tab and add:
+
+| Key | Value | Description |
+|-----|-------|-------------|
+| `SUPABASE_ANON_KEY` | `your_anon_key_here` | Your Supabase anonymous key |
+| `SUPABASE_SERVICE_ROLE_KEY` | `your_service_role_key_here` | Your Supabase service role key (optional, for admin operations) |
+
+**Note**: You only need one of these keys. Use `SUPABASE_ANON_KEY` for public access or `SUPABASE_SERVICE_ROLE_KEY` for admin operations.
+
+#### Step 4: Deploy
+Click "Create Web Service" and Render will automatically deploy your app!
+
+### 4. Environment Variable Configuration
+
+The app supports multiple methods for API key configuration:
+
+1. **Environment Variables** (Recommended for production)
+   - `SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+
+2. **Meta Tag** (Set by server.js)
+   - Automatically injected when using the Node.js server
+
+3. **Global Variables** (Set by server.js)
+   - `window.SUPABASE_ANON_KEY`
+   - `window.SUPABASE_SERVICE_ROLE_KEY`
+
+4. **Manual Entry** (Fallback)
+   - Prompts user if no environment variable is found
 
 ## File Structure
 
@@ -45,6 +96,8 @@ The app will prompt you for your API key when you first try to upload a file. Yo
 ├── index.html          # Main HTML file
 ├── styles.css          # CSS styling
 ├── script.js           # JavaScript functionality
+├── server.js           # Node.js server for environment variable injection
+├── package.json        # Node.js dependencies and scripts
 └── README.md           # This file
 ```
 
@@ -72,9 +125,11 @@ https://pevqdguawonvpvnqqpnp.storage.supabase.co/storage/v1/s3
 
 ## Security Notes
 
-- API keys are stored in memory only (not persisted)
+- API keys are securely handled via environment variables
+- Keys are injected server-side and never exposed in client-side code
 - Files are uploaded with unique timestamps to prevent conflicts
 - All uploads are authenticated with your Supabase API key
+- Environment variables are not logged or exposed in the browser
 
 ## Troubleshooting
 
