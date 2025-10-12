@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Diagnostic Tool</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+        .info { background: #d1ecf1; border-color: #bee5eb; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        input { padding: 8px; margin: 5px; width: 300px; }
+        .log { background: #f8f9fa; padding: 10px; margin: 10px 0; border-radius: 3px; font-family: monospace; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Database Diagnostic Tool</h1>
+    
+    <div class="test-section info">
+        <h3>Step 1: Enter Your Supabase Details</h3>
+        <input type="text" id="supabaseUrl" placeholder="Supabase URL (e.g., https://your-project.supabase.co)" value="https://pevqdguawonvpvnqqpnp.supabase.co">
+        <br>
+        <input type="text" id="apiKey" placeholder="Supabase API Key">
+        <br>
+        <button onclick="runDiagnostics()">Run Full Diagnostics</button>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        async function runDiagnostics() {
+            const supabaseUrl = document.getElementById('supabaseUrl').value;
+            const apiKey = document.getElementById('apiKey').value;
+            const resultsDiv = document.getElementById('results');
+            
+            if (!supabaseUrl || !apiKey) {
+                resultsDiv.innerHTML = '<div class="test-section error">Please enter both Supabase URL and API Key</div>';
+                return;
+            }
+
+            resultsDiv.innerHTML = '<div class="test-section info">Running diagnostics...</div>';
+            
+            let log = '';
+            
+            try {
+                // Test 1: Basic connectivity
+                log += '=== Test 1: Basic Connectivity ===\n';
+                const healthResponse = await fetch(`${supabaseUrl}/rest/v1/`, {
+                    headers: {
+                        'apikey': apiKey,
+                        'Authorization': `Bearer ${apiKey}`
+                    }
+                });
+                log += `Health check status: ${healthResponse.status}\n`;
+                
+                if (healthResponse.ok) {
+                    log += '✅ Basic connectivity successful\n\n';
+                } else {
+                    log += `❌ Basic connectivity failed: ${await healthResponse.text()}\n\n`;
+                }
+
+                // Test 2: Check if users table exists
+                log += '=== Test 2: Users Table Check ===\n';
+                const tableResponse = await fetch(`${supabaseUrl}/rest/v1/users?select=count`, {
+                    headers: {
+                        'apikey': apiKey,
+                        'Authorization': `Bearer ${apiKey}`
+                    }
+                });
+                log += `Table check status: ${tableResponse.status}\n`;
+                
+                if (tableResponse.ok) {
+                    log += '✅ Users table exists and is accessible\n\n';
+                } else {
+                    const errorText = await tableResponse.text();
+                    log += `❌ Users table issue: ${errorText}\n`;
+                    if (errorText.includes('relation "users" does not exist')) {
+                        log += '💡 SOLUTION: Run the database-schema.sql file in Supabase SQL Editor\n\n';
+                    } else {
+                        log += `💡 Check your API key permissions\n\n`;
+                    }
+                }
+
+                // Test 3: Check RLS policies
+                log += '=== Test 3: Row Level Security Check ===\n';
+                const rlsResponse = await fetch(`${supabaseUrl}/rest/v1/users?select=*&limit=1`, {
+                    headers: {
+                        'apikey': apiKey,
+                        'Authorization': `Bearer ${apiKey}`
+                    }
+                });
+                log += `RLS check status: ${rlsResponse.status}\n`;
+                
+                if (rlsResponse.ok) {
+                    log += '✅ RLS policies allow access\n\n';
+                } else {
+                    const errorText = await rlsResponse.text();
+                    log += `❌ RLS issue: ${errorText}\n`;
+                    if (errorText.includes('permission denied')) {
+                        log += '💡 SOLUTION: Disable RLS or create proper policies\n';
+                        log += 'Run: ALTER TABLE users DISABLE ROW LEVEL SECURITY;\n\n';
+                    }
+                }
+
+                // Test 4: Try to create a test user
+                log += '=== Test 4: User Creation Test ===\n';
+                const testUser = {
+                    username: 'test_' + Date.now(),
+                    email: 'test@example.com',
+                    password_hash: 'test_hash'
+                };
+                
+                const createResponse = await fetch(`${supabaseUrl}/rest/v1/users`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': apiKey,
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=minimal'
+                    },
+                    body: JSON.stringify(testUser)
+                });
+                
+                log += `Create test status: ${createResponse.status}\n`;
+                
+                if (createResponse.ok) {
+                    log += '✅ User creation successful\n';
+                    
+                    // Clean up test user
+                    await fetch(`${supabaseUrl}/rest/v1/users?username=eq.${testUser.username}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'apikey': apiKey,
+                            'Authorization': `Bearer ${apiKey}`
+                        }
+                    });
+                    log += '🧹 Test user cleaned up\n\n';
+                } else {
+                    const errorText = await createResponse.text();
+                    log += `❌ User creation failed: ${errorText}\n\n`;
+                }
+
+                // Test 5: Check existing users
+                log += '=== Test 5: Existing Users Check ===\n';
+                const usersResponse = await fetch(`${supabaseUrl}/rest/v1/users?select=username,email,created_at`, {
+                    headers: {
+                        'apikey': apiKey,
+                        'Authorization': `Bearer ${apiKey}`
+                    }
+                });
+                
+                if (usersResponse.ok) {
+                    const users = await usersResponse.json();
+                    log += `Found ${users.length} existing users\n`;
+                    if (users.length > 0) {
+                        log += 'Users: ' + JSON.stringify(users, null, 2) + '\n';
+                    }
+                } else {
+                    log += `❌ Failed to fetch users: ${await usersResponse.text()}\n`;
+                }
+
+            } catch (error) {
+                log += `❌ Diagnostic failed: ${error.message}\n`;
+            }
+
+            // Display results
+            const statusClass = log.includes('❌') ? 'error' : 'success';
+            resultsDiv.innerHTML = `
+                <div class="test-section ${statusClass}">
+                    <h3>Diagnostic Results</h3>
+                    <div class="log">${log}</div>
+                </div>
+                <div class="test-section info">
+                    <h3>Quick Fixes</h3>
+                    <p><strong>If users table doesn't exist:</strong></p>
+                    <p>Run this in Supabase SQL Editor:</p>
+                    <pre>CREATE TABLE users (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);</pre>
+                    
+                    <p><strong>If RLS is blocking access:</strong></p>
+                    <p>Run this in Supabase SQL Editor:</p>
+                    <pre>ALTER TABLE users DISABLE ROW LEVEL SECURITY;</pre>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

@@ -55,7 +55,10 @@ class FileUploadApp {
         
         // Initialize authentication manager after API key is loaded
         if (this.apiKey) {
+            console.log('Initializing AuthManager with API key:', this.apiKey.substring(0, 20) + '...');
             this.authManager = new AuthManager(this.supabaseUrl, this.apiKey);
+        } else {
+            console.error('❌ No API key available for authentication');
         }
     }
 
