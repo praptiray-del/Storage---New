@@ -1,6 +1,6 @@
 class FileUploadApp {
     constructor() {
-        this.supabaseUrl = 'https://pevqdguawonvpvnqqpnp.storage.supabase.co/storage/v1/s3';
+        this.supabaseUrl = 'https://pevqdguawonvpvnqqpnp.supabase.co';
         this.apiKey = ''; // Will be set from environment or user input
         this.selectedFiles = [];
         
@@ -174,7 +174,7 @@ class FileUploadApp {
 
     async uploadFiles() {
         if (!this.apiKey) {
-            this.showError('API key is required. Please enter your Supabase API key.');
+            this.showError('API key is required. Please set SUPABASE_ANON_KEY or SUPABASE_SERVICE_ROLE_KEY environment variable.');
             return;
         }
 
@@ -187,6 +187,9 @@ class FileUploadApp {
         this.submitBtn.disabled = true;
 
         try {
+            // First, ensure the bucket exists
+            await this.ensureBucketExists();
+            
             for (let i = 0; i < this.selectedFiles.length; i++) {
                 const file = this.selectedFiles[i];
                 await this.uploadSingleFile(file, i + 1, this.selectedFiles.length);
@@ -201,33 +204,89 @@ class FileUploadApp {
         }
     }
 
-    async uploadSingleFile(file, currentIndex, totalFiles) {
-        const formData = new FormData();
-        formData.append('file', file);
+    async ensureBucketExists() {
+        const bucketName = 'uploads';
+        const bucketUrl = `${this.supabaseUrl}/storage/v1/bucket/${bucketName}`;
         
+        try {
+            // Check if bucket exists
+            const response = await fetch(bucketUrl, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${this.apiKey}`
+                }
+            });
+
+            if (response.status === 404) {
+                // Bucket doesn't exist, create it
+                console.log('Creating bucket:', bucketName);
+                const createResponse = await fetch(`${this.supabaseUrl}/storage/v1/bucket`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${this.apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        id: bucketName,
+                        name: bucketName,
+                        public: true
+                    })
+                });
+
+                if (!createResponse.ok) {
+                    const errorText = await createResponse.text();
+                    console.warn('Could not create bucket:', errorText);
+                    // Continue anyway, the bucket might already exist or be created by admin
+                } else {
+                    console.log('Bucket created successfully');
+                }
+            } else if (!response.ok) {
+                console.warn('Could not check bucket status:', response.status);
+                // Continue anyway
+            } else {
+                console.log('Bucket exists');
+            }
+        } catch (error) {
+            console.warn('Error checking/creating bucket:', error);
+            // Continue anyway, the upload might still work
+        }
+    }
+
+    async uploadSingleFile(file, currentIndex, totalFiles) {
         // Generate unique filename with timestamp
         const timestamp = Date.now();
-        const fileExtension = file.name.split('.').pop();
         const fileName = `${timestamp}_${file.name}`;
         
-        const uploadUrl = `${this.supabaseUrl}/upload/${fileName}`;
+        // Use the correct Supabase storage API endpoint
+        const bucketName = 'uploads'; // You can change this bucket name
+        const uploadUrl = `${this.supabaseUrl}/storage/v1/object/${bucketName}/${fileName}`;
+        
+        console.log('Uploading to:', uploadUrl);
+        console.log('File:', file.name, 'Size:', file.size);
         
         const response = await fetch(uploadUrl, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'multipart/form-data'
+                'Content-Type': file.type || 'application/octet-stream'
             },
-            body: formData
+            body: file
         });
 
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorText = await response.text();
+            console.error('Upload error response:', errorText);
+            throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
         }
+
+        const result = await response.json();
+        console.log('Upload successful:', result);
 
         // Update progress
         const progress = (currentIndex / totalFiles) * 100;
         this.updateProgress(progress, `Uploading ${currentIndex} of ${totalFiles} files...`);
+        
+        return result;
     }
 
     updateProgress(percentage, text) {

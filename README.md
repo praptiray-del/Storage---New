@@ -69,7 +69,16 @@ In the Render dashboard, go to your service → Environment tab and add:
 
 **Note**: You only need one of these keys. Use `SUPABASE_ANON_KEY` for public access or `SUPABASE_SERVICE_ROLE_KEY` for admin operations.
 
-#### Step 4: Deploy
+#### Step 4: Create Storage Bucket (Optional)
+The app will automatically try to create a storage bucket called `uploads`. If you prefer to create it manually:
+
+1. Go to your Supabase project dashboard
+2. Navigate to **Storage** → **Buckets**
+3. Click **New Bucket**
+4. Name it `uploads` (or change the bucket name in the code)
+5. Make it **Public** if you want files to be publicly accessible
+
+#### Step 5: Deploy
 Click "Create Web Service" and Render will automatically deploy your app!
 
 ### 4. Environment Variable Configuration
