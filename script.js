@@ -57,24 +57,40 @@ class FileUploadApp {
         // Check for environment variables that might be available
         // These are common ways environment variables are exposed in web apps
         
-        // Method 1: Check if running in a server environment
-        if (typeof process !== 'undefined' && process.env) {
-            return process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
-        }
-        
-        // Method 2: Check for global variables (common in some deployment platforms)
+        // Method 1: Check for global variables (set by server.js)
         if (typeof window !== 'undefined') {
-            return window.SUPABASE_ANON_KEY || window.SUPABASE_SERVICE_ROLE_KEY;
+            if (window.SUPABASE_ANON_KEY && window.SUPABASE_ANON_KEY.trim() !== '') {
+                console.log('Found API key via window.SUPABASE_ANON_KEY');
+                return window.SUPABASE_ANON_KEY;
+            }
+            if (window.SUPABASE_SERVICE_ROLE_KEY && window.SUPABASE_SERVICE_ROLE_KEY.trim() !== '') {
+                console.log('Found API key via window.SUPABASE_SERVICE_ROLE_KEY');
+                return window.SUPABASE_SERVICE_ROLE_KEY;
+            }
         }
         
-        // Method 3: Check for meta tags (if set in HTML)
+        // Method 2: Check for meta tags (set by server.js)
         if (typeof document !== 'undefined') {
             const metaKey = document.querySelector('meta[name="supabase-api-key"]');
-            if (metaKey) {
+            if (metaKey && metaKey.getAttribute('content') && metaKey.getAttribute('content').trim() !== '') {
+                console.log('Found API key via meta tag');
                 return metaKey.getAttribute('content');
             }
         }
         
+        // Method 3: Check if running in a server environment (Node.js)
+        if (typeof process !== 'undefined' && process.env) {
+            if (process.env.SUPABASE_ANON_KEY && process.env.SUPABASE_ANON_KEY.trim() !== '') {
+                console.log('Found API key via process.env.SUPABASE_ANON_KEY');
+                return process.env.SUPABASE_ANON_KEY;
+            }
+            if (process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY.trim() !== '') {
+                console.log('Found API key via process.env.SUPABASE_SERVICE_ROLE_KEY');
+                return process.env.SUPABASE_SERVICE_ROLE_KEY;
+            }
+        }
+        
+        console.log('No API key found in environment variables');
         return null;
     }
 

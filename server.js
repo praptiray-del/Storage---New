@@ -15,7 +15,14 @@ app.get('/', (req, res) => {
         let html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
         
         // Get the API key from environment variables
-        const apiKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+        const anonKey = process.env.SUPABASE_ANON_KEY || '';
+        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+        const apiKey = anonKey || serviceKey;
+        
+        console.log('Environment variables check:');
+        console.log('SUPABASE_ANON_KEY:', anonKey ? 'SET' : 'NOT SET');
+        console.log('SUPABASE_SERVICE_ROLE_KEY:', serviceKey ? 'SET' : 'NOT SET');
+        console.log('Using API key:', apiKey ? 'FOUND' : 'NOT FOUND');
         
         // Inject the API key into the meta tag
         html = html.replace(
@@ -23,11 +30,15 @@ app.get('/', (req, res) => {
             `<meta name="supabase-api-key" content="${apiKey}">`
         );
         
-        // Also inject as a global variable in a script tag
+        // Also inject as global variables in a script tag
         const scriptTag = `
             <script>
-                window.SUPABASE_ANON_KEY = '${apiKey}';
-                window.SUPABASE_SERVICE_ROLE_KEY = '${apiKey}';
+                window.SUPABASE_ANON_KEY = '${anonKey}';
+                window.SUPABASE_SERVICE_ROLE_KEY = '${serviceKey}';
+                console.log('API keys injected:', {
+                    anonKey: '${anonKey ? 'SET' : 'NOT SET'}',
+                    serviceKey: '${serviceKey ? 'SET' : 'NOT SET'}'
+                });
             </script>
         `;
         
