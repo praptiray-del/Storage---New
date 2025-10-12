@@ -5,14 +5,38 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Add error handling middleware
+app.use((err, req, res, next) => {
+    console.error('Server error:', err);
+    res.status(500).send('Internal Server Error');
+});
+
 // Serve static files
 app.use(express.static('.'));
 
 // Route to serve the main page with environment variables injected
 app.get('/', (req, res) => {
     try {
+        console.log('Serving main page...');
+        console.log('Current directory:', __dirname);
+        console.log('Files in directory:', fs.readdirSync(__dirname));
+        
+        const htmlPath = path.join(__dirname, 'index.html');
+        console.log('Looking for HTML file at:', htmlPath);
+        
+        // Check if file exists
+        if (!fs.existsSync(htmlPath)) {
+            console.error('index.html not found at:', htmlPath);
+            return res.status(404).send(`
+                <h1>File Not Found</h1>
+                <p>index.html not found at: ${htmlPath}</p>
+                <p>Available files: ${fs.readdirSync(__dirname).join(', ')}</p>
+            `);
+        }
+        
         // Read the HTML file
-        let html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+        let html = fs.readFileSync(htmlPath, 'utf8');
+        console.log('HTML file read successfully, length:', html.length);
         
         // Get the API key from environment variables
         const anonKey = process.env.SUPABASE_ANON_KEY || '';
@@ -45,20 +69,49 @@ app.get('/', (req, res) => {
         // Insert the script tag before the closing head tag
         html = html.replace('</head>', `${scriptTag}</head>`);
         
+        console.log('Sending HTML response...');
         res.send(html);
     } catch (error) {
         console.error('Error serving page:', error);
-        res.status(500).send('Internal Server Error');
+        console.error('Error stack:', error.stack);
+        res.status(500).send(`
+            <h1>Server Error</h1>
+            <p>Error: ${error.message}</p>
+            <p>Stack: ${error.stack}</p>
+        `);
     }
 });
 
 // Health check endpoint for Render
 app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+    res.status(200).json({ 
+        status: 'OK', 
+        timestamp: new Date().toISOString(),
+        environment: {
+            SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY ? 'SET' : 'NOT SET',
+            SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'NOT SET'
+        }
+    });
 });
 
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`Environment variables loaded: ${process.env.SUPABASE_ANON_KEY ? 'SUPABASE_ANON_KEY ✓' : 'SUPABASE_ANON_KEY ✗'}`);
-    console.log(`Environment variables loaded: ${process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SUPABASE_SERVICE_ROLE_KEY ✓' : 'SUPABASE_SERVICE_ROLE_KEY ✗'}`);
+// Fallback route for any other requests
+app.get('*', (req, res) => {
+    console.log('Fallback route hit for:', req.path);
+    res.redirect('/');
 });
+
+// Start server with error handling
+try {
+    app.listen(PORT, '0.0.0.0', () => {
+        console.log(`🚀 Server running on port ${PORT}`);
+        console.log(`📁 Current directory: ${__dirname}`);
+        console.log(`📄 Files available: ${fs.readdirSync(__dirname).join(', ')}`);
+        console.log(`🔑 Environment variables loaded:`);
+        console.log(`   SUPABASE_ANON_KEY: ${process.env.SUPABASE_ANON_KEY ? '✓ SET' : '✗ NOT SET'}`);
+        console.log(`   SUPABASE_SERVICE_ROLE_KEY: ${process.env.SUPABASE_SERVICE_ROLE_KEY ? '✓ SET' : '✗ NOT SET'}`);
+        console.log(`🌐 Server ready to accept connections`);
+    });
+} catch (error) {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
+}
