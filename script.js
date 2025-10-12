@@ -47,7 +47,18 @@ class FileUploadApp {
         // Payment events
         const upgradeBtn = document.getElementById('upgradeBtn');
         if (upgradeBtn) {
-            upgradeBtn.addEventListener('click', () => this.initiatePayment());
+            upgradeBtn.addEventListener('click', () => this.showCheckoutForm());
+        }
+
+        // Checkout form events
+        const cancelCheckoutBtn = document.getElementById('cancelCheckout');
+        if (cancelCheckoutBtn) {
+            cancelCheckoutBtn.addEventListener('click', () => this.hideCheckoutForm());
+        }
+
+        const checkoutForm = document.getElementById('checkoutForm');
+        if (checkoutForm) {
+            checkoutForm.addEventListener('submit', (e) => this.handleCheckoutSubmit(e));
         }
     }
 
@@ -415,6 +426,105 @@ class FileUploadApp {
         this.progressSection.style.display = 'none';
         this.resultSection.style.display = 'none';
         this.submitBtn.disabled = false;
+    }
+
+    showCheckoutForm() {
+        const user = this.authManager ? this.authManager.getCurrentUser() : null;
+        if (!user) {
+            this.showError('Please login to proceed with payment.');
+            return;
+        }
+
+        // Pre-fill form with user data
+        document.getElementById('customerName').value = user.username || '';
+        document.getElementById('customerEmail').value = user.email || '';
+        
+        // Show checkout form
+        document.getElementById('paymentCheckout').style.display = 'block';
+        
+        // Scroll to checkout form
+        document.getElementById('paymentCheckout').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    hideCheckoutForm() {
+        document.getElementById('paymentCheckout').style.display = 'none';
+    }
+
+    async handleCheckoutSubmit(e) {
+        e.preventDefault();
+        
+        if (!this.dodoPayments) {
+            this.showError('Payment system not initialized. Please refresh the page.');
+            return;
+        }
+
+        try {
+            // Collect form data
+            const formData = new FormData(e.target);
+            const checkoutData = {
+                customerName: formData.get('customerName'),
+                customerEmail: formData.get('customerEmail'),
+                customerPhone: formData.get('customerPhone'),
+                customerCountry: formData.get('customerCountry'),
+                billingStreet: formData.get('billingStreet'),
+                billingCity: formData.get('billingCity'),
+                billingState: formData.get('billingState'),
+                billingZipcode: formData.get('billingZipcode'),
+                billingCountry: formData.get('billingCountry')
+            };
+
+            // Validate form data
+            if (!this.validateCheckoutData(checkoutData)) {
+                return;
+            }
+
+            // Disable submit button
+            const submitBtn = document.getElementById('proceedPayment');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+
+            // Initiate payment with form data
+            await this.dodoPayments.initiatePaymentWithData(checkoutData);
+
+        } catch (error) {
+            console.error('Checkout submission failed:', error);
+            this.showError(`Payment failed: ${error.message}`);
+            
+            // Re-enable submit button
+            const submitBtn = document.getElementById('proceedPayment');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-credit-card"></i> Proceed to Payment';
+        }
+    }
+
+    validateCheckoutData(data) {
+        const requiredFields = [
+            'customerName', 'customerEmail', 'customerPhone', 'customerCountry',
+            'billingStreet', 'billingCity', 'billingState', 'billingZipcode', 'billingCountry'
+        ];
+
+        for (const field of requiredFields) {
+            if (!data[field] || data[field].trim() === '') {
+                this.showError(`Please fill in all required fields. Missing: ${field}`);
+                return false;
+            }
+        }
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(data.customerEmail)) {
+            this.showError('Please enter a valid email address.');
+            return false;
+        }
+
+        // Validate phone format (basic validation)
+        const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+        if (!phoneRegex.test(data.customerPhone.replace(/[\s\-\(\)]/g, ''))) {
+            this.showError('Please enter a valid phone number.');
+            return false;
+        }
+
+        return true;
     }
 
     async initiatePayment() {
