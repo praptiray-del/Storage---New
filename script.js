@@ -3,6 +3,7 @@ class FileUploadApp {
         this.supabaseUrl = 'https://pevqdguawonvpvnqqpnp.supabase.co';
         this.apiKey = ''; // Will be set from environment or user input
         this.selectedFiles = [];
+        this.authManager = null; // Will be initialized after API key is loaded
         
         this.initializeElements();
         this.bindEvents();
@@ -50,6 +51,11 @@ class FileUploadApp {
         // If no environment variable is found, prompt user
         if (!this.apiKey) {
             this.promptForApiKey();
+        }
+        
+        // Initialize authentication manager after API key is loaded
+        if (this.apiKey) {
+            this.authManager = new AuthManager(this.supabaseUrl, this.apiKey);
         }
     }
 
@@ -190,6 +196,11 @@ class FileUploadApp {
             return;
         }
 
+        if (!this.authManager || !this.authManager.isUserAuthenticated()) {
+            this.showError('Please login to upload files.');
+            return;
+        }
+
         if (this.selectedFiles.length === 0) {
             this.showError('Please select files to upload.');
             return;
@@ -304,11 +315,49 @@ class FileUploadApp {
         const result = await response.json();
         console.log('Upload successful:', result);
 
+        // Track the upload in the database
+        await this.trackUserUpload(file, fileName);
+
         // Update progress
         const progress = (currentIndex / totalFiles) * 100;
         this.updateProgress(progress, `Uploading ${currentIndex} of ${totalFiles} files...`);
         
         return result;
+    }
+
+    async trackUserUpload(file, fileName) {
+        if (!this.authManager || !this.authManager.isUserAuthenticated()) {
+            return; // Don't track if user is not authenticated
+        }
+
+        try {
+            const user = this.authManager.getCurrentUser();
+            const response = await fetch(`${this.supabaseUrl}/rest/v1/user_uploads`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.apiKey}`,
+                    'apikey': this.apiKey,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'return=minimal'
+                },
+                body: JSON.stringify({
+                    user_id: user.id,
+                    file_name: file.name,
+                    file_size: file.size,
+                    file_type: file.type,
+                    storage_path: `uploads/${fileName}`
+                })
+            });
+
+            if (!response.ok) {
+                console.warn('Failed to track upload in database:', response.status);
+            } else {
+                console.log('Upload tracked in database successfully');
+            }
+        } catch (error) {
+            console.warn('Error tracking upload:', error);
+            // Don't throw error - upload was successful, just tracking failed
+        }
     }
 
     updateProgress(percentage, text) {
