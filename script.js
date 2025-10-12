@@ -135,11 +135,13 @@ class FileUploadApp {
             
             const icon = this.getFileIcon(file.type);
             const size = this.formatFileSize(file.size);
+            const sanitizedName = this.sanitizeFileName(file.name);
             
             fileItem.innerHTML = `
                 <i class="fas ${icon} file-icon"></i>
                 <div class="file-details">
                     <div class="file-name">${file.name}</div>
+                    <div class="file-name-sanitized">Will be saved as: ${sanitizedName}</div>
                     <div class="file-size">${size}</div>
                 </div>
             `;
@@ -164,6 +166,15 @@ class FileUploadApp {
         const sizes = ['Bytes', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    sanitizeFileName(fileName) {
+        // Remove or replace characters that are not allowed in Supabase storage keys
+        return fileName
+            .replace(/[^a-zA-Z0-9._-]/g, '_')  // Replace special chars with underscore
+            .replace(/_{2,}/g, '_')            // Replace multiple underscores with single
+            .replace(/^_|_$/g, '')             // Remove leading/trailing underscores
+            .toLowerCase();                    // Convert to lowercase for consistency
     }
 
     showFileInfo() {
@@ -249,16 +260,19 @@ class FileUploadApp {
     }
 
     async uploadSingleFile(file, currentIndex, totalFiles) {
-        // Generate unique filename with timestamp
+        // Generate unique filename with timestamp and sanitize it
         const timestamp = Date.now();
-        const fileName = `${timestamp}_${file.name}`;
+        const sanitizedOriginalName = this.sanitizeFileName(file.name);
+        const fileName = `${timestamp}_${sanitizedOriginalName}`;
         
         // Use the correct Supabase storage API endpoint
         const bucketName = 'uploads'; // You can change this bucket name
         const uploadUrl = `${this.supabaseUrl}/storage/v1/object/${bucketName}/${fileName}`;
         
+        console.log('Original filename:', file.name);
+        console.log('Sanitized filename:', fileName);
         console.log('Uploading to:', uploadUrl);
-        console.log('File:', file.name, 'Size:', file.size);
+        console.log('File size:', file.size);
         
         const response = await fetch(uploadUrl, {
             method: 'POST',
