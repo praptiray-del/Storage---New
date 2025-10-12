@@ -300,10 +300,16 @@ class FileUploadApp {
         console.log('Uploading to:', uploadUrl);
         console.log('File size:', file.size);
         
+        // Get the current user for authentication
+        const user = this.authManager ? this.authManager.getCurrentUser() : null;
+        const authToken = user ? `Bearer ${user.id}` : `Bearer ${this.apiKey}`;
+        
+        console.log('Using auth token for upload:', user ? 'User ID' : 'API Key');
+        
         const response = await fetch(uploadUrl, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
+                'Authorization': authToken,
                 'Content-Type': file.type || 'application/octet-stream'
             },
             body: file
