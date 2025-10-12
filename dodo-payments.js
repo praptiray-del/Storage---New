@@ -14,8 +14,20 @@ class DodoPayments {
         this.dodoApiKey = this.getDodoApiKeyFromEnvironment();
         this.productId = this.getProductIdFromEnvironment();
         
+        console.log('Dodo Payments Config Loading:');
+        console.log('- API Key found:', !!this.dodoApiKey);
+        console.log('- Product ID found:', !!this.productId);
+        console.log('- API Key value:', this.dodoApiKey ? this.dodoApiKey.substring(0, 20) + '...' : 'NOT FOUND');
+        console.log('- Product ID value:', this.productId || 'NOT FOUND');
+        
         if (!this.dodoApiKey || !this.productId) {
             console.warn('Dodo Payments API key or Product ID not found in environment variables');
+            console.log('Available window variables:', Object.keys(window).filter(key => key.includes('DODO')));
+            console.log('All window variables:', Object.keys(window).filter(key => key.includes('API') || key.includes('KEY') || key.includes('DODO')));
+            
+            // Check if variables exist but are empty
+            console.log('DODO_PAYMENTS_API_KEY value:', window.DODO_PAYMENTS_API_KEY);
+            console.log('DODO_PRODUCT_ID value:', window.DODO_PRODUCT_ID);
         }
     }
 
@@ -70,12 +82,27 @@ class DodoPayments {
             throw new Error('User must be logged in to make a payment');
         }
 
+        // Try to reload config in case environment variables were updated
+        this.loadConfig();
+
         if (!this.dodoApiKey) {
-            throw new Error('Dodo Payments API key not configured');
+            // Try to get API key from user input as fallback
+            const userApiKey = prompt('Dodo Payments API key not found in environment variables. Please enter your API key:');
+            if (userApiKey) {
+                this.dodoApiKey = userApiKey;
+            } else {
+                throw new Error('Dodo Payments API key not configured. Please set DODO_PAYMENTS_API_KEY environment variable or contact support.');
+            }
         }
 
         if (!this.productId) {
-            throw new Error('Dodo Payments Product ID not configured');
+            // Try to get product ID from user input as fallback
+            const userProductId = prompt('Dodo Payments Product ID not found in environment variables. Please enter your product ID:');
+            if (userProductId) {
+                this.productId = userProductId;
+            } else {
+                throw new Error('Dodo Payments Product ID not configured. Please set DODO_PRODUCT_ID environment variable or contact support.');
+            }
         }
 
         try {
