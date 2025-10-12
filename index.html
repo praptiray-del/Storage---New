@@ -76,9 +76,14 @@
         <div class="user-dashboard" id="userDashboard" style="display: none;">
             <div class="user-info">
                 <h2>Welcome, <span id="userDisplayName"></span>!</h2>
-                <button class="logout-btn" id="logoutBtn">
-                    <i class="fas fa-sign-out-alt"></i> Logout
-                </button>
+                <div class="user-actions">
+                    <button class="upgrade-btn" id="upgradeBtn">
+                        <i class="fas fa-crown"></i> Upgrade to Premium
+                    </button>
+                    <button class="logout-btn" id="logoutBtn">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -135,6 +140,7 @@
     </div>
 
     <script src="auth.js"></script>
+    <script src="dodo-payments.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

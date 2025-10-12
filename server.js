@@ -59,9 +59,13 @@ app.get('/', (req, res) => {
             <script>
                 window.SUPABASE_ANON_KEY = '${anonKey}';
                 window.SUPABASE_SERVICE_ROLE_KEY = '${serviceKey}';
+                window.DODO_PAYMENTS_API_KEY = '${process.env.DODO_PAYMENTS_API_KEY || ''}';
+                window.DODO_PRODUCT_ID = '${process.env.DODO_PRODUCT_ID || ''}';
                 console.log('API keys injected:', {
                     anonKey: '${anonKey ? 'SET' : 'NOT SET'}',
-                    serviceKey: '${serviceKey ? 'SET' : 'NOT SET'}'
+                    serviceKey: '${serviceKey ? 'SET' : 'NOT SET'}',
+                    dodoApiKey: '${process.env.DODO_PAYMENTS_API_KEY ? 'SET' : 'NOT SET'}',
+                    dodoProductId: '${process.env.DODO_PRODUCT_ID ? 'SET' : 'NOT SET'}'
                 });
             </script>
         `;
