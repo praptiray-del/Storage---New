@@ -98,120 +98,46 @@ class DodoPayments {
             throw new Error('User must be logged in to make a payment');
         }
 
-        // Try to reload config in case environment variables were updated
-        this.loadConfig();
-        
-        // If still not found, try a delayed reload
-        if (!this.dodoApiKey || !this.productId) {
-            console.log('Retrying config load after delay...');
-            setTimeout(() => {
-                this.loadConfig();
-                console.log('Delayed config load - API Key:', !!this.dodoApiKey, 'Product ID:', !!this.productId);
-            }, 1000);
-        }
-
-        if (!this.dodoApiKey) {
-            // Try to get API key from user input as fallback
-            const userApiKey = prompt('Dodo Payments API key not found in environment variables. Please enter your API key:');
-            if (userApiKey) {
-                this.dodoApiKey = userApiKey;
-            } else {
-                throw new Error('Dodo Payments API key not configured. Please set DODO_PAYMENTS_API_KEY environment variable or contact support.');
-            }
-        }
-
-        if (!this.productId) {
-            // Try to get product ID from user input as fallback
-            const userProductId = prompt('Dodo Payments Product ID not found in environment variables. Please enter your product ID:');
-            if (userProductId) {
-                this.productId = userProductId;
-            } else {
-                throw new Error('Dodo Payments Product ID not configured. Please set DODO_PRODUCT_ID environment variable or contact support.');
-            }
-        }
-
         try {
             const user = this.authManager.getCurrentUser();
             console.log('Creating checkout session for user:', user.username);
-            console.log('Using API Key:', this.dodoApiKey.substring(0, 20) + '...');
-            console.log('Using Product ID:', this.productId);
 
-            // Generate unique checkout ID for tracking
-            const checkoutId = `checkout_${user.id}_${Date.now()}`;
-            
             // Get current page URL for return URL
-            const returnUrl = `${window.location.origin}${window.location.pathname}?payment=success&checkout_id=${checkoutId}`;
+            const returnUrl = `${window.location.origin}${window.location.pathname}?payment=success`;
 
             const requestBody = {
-                // Products to sell - use IDs from your Dodo Payments dashboard
-                product_cart: [
-                    {
-                        product_id: this.productId,
-                        quantity: 1
-                    }
-                ],
-                
-                // Pre-fill customer information from logged-in user
-                customer: {
-                    email: user.email || 'user@example.com',
-                    name: user.username,
-                    phone_number: '+1234567890' // You can add phone to user registration if needed
-                },
-                
-                // Default billing address (you can make this configurable)
-                billing_address: {
-                    street: '123 Main St',
-                    city: 'San Francisco',
-                    state: 'CA', 
-                    country: 'US', // Required: ISO 3166-1 alpha-2 country code
-                    zipcode: '94102'
-                },
-                
-                // Where to redirect after successful payment
-                return_url: returnUrl,
-                
-                // Custom data for your internal tracking
-                metadata: {
-                    user_id: user.id,
-                    username: user.username,
-                    checkout_id: checkoutId,
-                    source: 'file_upload_app'
-                }
+                user_id: user.id,
+                username: user.username,
+                email: user.email || 'user@example.com',
+                return_url: returnUrl
             };
 
-            console.log('Sending request to Dodo Payments API...');
-            console.log('Request URL:', 'https://test.dodopayments.com/checkouts');
+            console.log('Sending request to server endpoint...');
             console.log('Request body:', JSON.stringify(requestBody, null, 2));
 
-            const response = await fetch('https://test.dodopayments.com/checkouts', {
+            const response = await fetch('/api/create-checkout', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.dodoApiKey}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(requestBody)
             });
 
-            console.log('Response status:', response.status);
-            console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+            console.log('Server response status:', response.status);
 
             if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Dodo Payments API Error:', {
-                    status: response.status,
-                    statusText: response.statusText,
-                    errorText: errorText
-                });
-                throw new Error(`Dodo Payments API error! status: ${response.status} - ${errorText}`);
+                const errorData = await response.json();
+                console.error('Server API Error:', errorData);
+                throw new Error(`Server error: ${errorData.error} - ${errorData.details}`);
             }
 
-            const session = await response.json();
-            console.log('Checkout session created successfully:', session);
+            const result = await response.json();
+            console.log('Checkout session created successfully:', result);
             
             // Store checkout session in database for tracking
-            await this.trackCheckoutSession(user.id, checkoutId, session);
+            await this.trackCheckoutSession(user.id, result.checkout_id, result.session);
             
-            return session;
+            return result.session;
             
         } catch (error) {
             console.error('Failed to create checkout session:', error);
@@ -320,54 +246,9 @@ class DodoPayments {
         }, 5000);
     }
 
-    async testApiConnection() {
-        try {
-            console.log('Testing Dodo Payments API connection...');
-            console.log('API Key format check:', this.dodoApiKey.startsWith('dodo_') ? 'VALID' : 'INVALID');
-            console.log('Product ID format check:', this.productId.startsWith('prod_') ? 'VALID' : 'INVALID');
-            
-            // Test with a minimal request
-            const testResponse = await fetch('https://test.dodopayments.com/checkouts', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.dodoApiKey}`
-                },
-                body: JSON.stringify({
-                    product_cart: [{ product_id: this.productId, quantity: 1 }],
-                    customer: { email: 'test@example.com', name: 'Test User' },
-                    billing_address: { street: '123 Test St', city: 'Test City', state: 'TS', country: 'US', zipcode: '12345' },
-                    return_url: window.location.href,
-                    metadata: { test: true }
-                })
-            });
-            
-            console.log('Test API response status:', testResponse.status);
-            
-            if (testResponse.ok) {
-                const testResult = await testResponse.json();
-                console.log('API connection test successful:', testResult);
-                return true;
-            } else {
-                const errorText = await testResponse.text();
-                console.error('API connection test failed:', testResponse.status, errorText);
-                return false;
-            }
-        } catch (error) {
-            console.error('API connection test error:', error);
-            return false;
-        }
-    }
-
     async initiatePayment() {
         try {
-            // Test API connection first
-            console.log('Testing API connection before payment...');
-            const connectionOk = await this.testApiConnection();
-            
-            if (!connectionOk) {
-                throw new Error('API connection test failed. Please check your API key and product ID.');
-            }
+            console.log('Initiating payment through server endpoint...');
             
             const session = await this.createCheckoutSession();
             

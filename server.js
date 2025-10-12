@@ -115,6 +115,103 @@ app.get('/health', (req, res) => {
     });
 });
 
+// Dodo Payments API endpoint (server-side to avoid CORS)
+app.post('/api/create-checkout', async (req, res) => {
+    try {
+        const { user_id, username, email, return_url } = req.body;
+        
+        console.log('Creating Dodo Payments checkout session for user:', username);
+        
+        const dodoApiKey = process.env.DODO_PAYMENTS_API_KEY;
+        const dodoProductId = process.env.DODO_PRODUCT_ID;
+        
+        if (!dodoApiKey || !dodoProductId) {
+            return res.status(500).json({ 
+                error: 'Dodo Payments configuration missing',
+                details: {
+                    apiKey: dodoApiKey ? 'SET' : 'NOT SET',
+                    productId: dodoProductId ? 'SET' : 'NOT SET'
+                }
+            });
+        }
+        
+        // Generate unique checkout ID for tracking
+        const checkoutId = `checkout_${user_id}_${Date.now()}`;
+        
+        const requestBody = {
+            product_cart: [
+                {
+                    product_id: dodoProductId,
+                    quantity: 1
+                }
+            ],
+            customer: {
+                email: email || 'user@example.com',
+                name: username,
+                phone_number: '+1234567890'
+            },
+            billing_address: {
+                street: '123 Main St',
+                city: 'San Francisco',
+                state: 'CA', 
+                country: 'US',
+                zipcode: '94102'
+            },
+            return_url: return_url,
+            metadata: {
+                user_id: user_id,
+                username: username,
+                checkout_id: checkoutId,
+                source: 'file_upload_app'
+            }
+        };
+        
+        console.log('Sending request to Dodo Payments API...');
+        console.log('Request body:', JSON.stringify(requestBody, null, 2));
+        
+        const response = await fetch('https://test.dodopayments.com/checkouts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${dodoApiKey}`
+            },
+            body: JSON.stringify(requestBody)
+        });
+        
+        console.log('Dodo Payments API response status:', response.status);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Dodo Payments API Error:', {
+                status: response.status,
+                statusText: response.statusText,
+                errorText: errorText
+            });
+            return res.status(response.status).json({ 
+                error: 'Dodo Payments API error',
+                details: errorText
+            });
+        }
+        
+        const session = await response.json();
+        console.log('Checkout session created successfully:', session);
+        
+        // Return the session data to the client
+        res.json({
+            success: true,
+            session: session,
+            checkout_id: checkoutId
+        });
+        
+    } catch (error) {
+        console.error('Server error creating checkout session:', error);
+        res.status(500).json({ 
+            error: 'Internal server error',
+            details: error.message
+        });
+    }
+});
+
 // Fallback route for any other requests
 app.get('*', (req, res) => {
     console.log('Fallback route hit for:', req.path);
