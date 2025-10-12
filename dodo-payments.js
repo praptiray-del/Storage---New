@@ -133,6 +133,8 @@ class DodoPayments {
         try {
             const user = this.authManager.getCurrentUser();
             console.log('Creating checkout session for user:', user.username);
+            console.log('Using API Key:', this.dodoApiKey.substring(0, 20) + '...');
+            console.log('Using Product ID:', this.productId);
 
             // Generate unique checkout ID for tracking
             const checkoutId = `checkout_${user.id}_${Date.now()}`;
@@ -140,57 +142,71 @@ class DodoPayments {
             // Get current page URL for return URL
             const returnUrl = `${window.location.origin}${window.location.pathname}?payment=success&checkout_id=${checkoutId}`;
 
+            const requestBody = {
+                // Products to sell - use IDs from your Dodo Payments dashboard
+                product_cart: [
+                    {
+                        product_id: this.productId,
+                        quantity: 1
+                    }
+                ],
+                
+                // Pre-fill customer information from logged-in user
+                customer: {
+                    email: user.email || 'user@example.com',
+                    name: user.username,
+                    phone_number: '+1234567890' // You can add phone to user registration if needed
+                },
+                
+                // Default billing address (you can make this configurable)
+                billing_address: {
+                    street: '123 Main St',
+                    city: 'San Francisco',
+                    state: 'CA', 
+                    country: 'US', // Required: ISO 3166-1 alpha-2 country code
+                    zipcode: '94102'
+                },
+                
+                // Where to redirect after successful payment
+                return_url: returnUrl,
+                
+                // Custom data for your internal tracking
+                metadata: {
+                    user_id: user.id,
+                    username: user.username,
+                    checkout_id: checkoutId,
+                    source: 'file_upload_app'
+                }
+            };
+
+            console.log('Sending request to Dodo Payments API...');
+            console.log('Request URL:', 'https://test.dodopayments.com/checkouts');
+            console.log('Request body:', JSON.stringify(requestBody, null, 2));
+
             const response = await fetch('https://test.dodopayments.com/checkouts', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${this.dodoApiKey}`
                 },
-                body: JSON.stringify({
-                    // Products to sell - use IDs from your Dodo Payments dashboard
-                    product_cart: [
-                        {
-                            product_id: this.productId,
-                            quantity: 1
-                        }
-                    ],
-                    
-                    // Pre-fill customer information from logged-in user
-                    customer: {
-                        email: user.email || 'user@example.com',
-                        name: user.username,
-                        phone_number: '+1234567890' // You can add phone to user registration if needed
-                    },
-                    
-                    // Default billing address (you can make this configurable)
-                    billing_address: {
-                        street: '123 Main St',
-                        city: 'San Francisco',
-                        state: 'CA', 
-                        country: 'US', // Required: ISO 3166-1 alpha-2 country code
-                        zipcode: '94102'
-                    },
-                    
-                    // Where to redirect after successful payment
-                    return_url: returnUrl,
-                    
-                    // Custom data for your internal tracking
-                    metadata: {
-                        user_id: user.id,
-                        username: user.username,
-                        checkout_id: checkoutId,
-                        source: 'file_upload_app'
-                    }
-                })
+                body: JSON.stringify(requestBody)
             });
+
+            console.log('Response status:', response.status);
+            console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
             if (!response.ok) {
                 const errorText = await response.text();
-                throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+                console.error('Dodo Payments API Error:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    errorText: errorText
+                });
+                throw new Error(`Dodo Payments API error! status: ${response.status} - ${errorText}`);
             }
 
             const session = await response.json();
-            console.log('Checkout session created:', session);
+            console.log('Checkout session created successfully:', session);
             
             // Store checkout session in database for tracking
             await this.trackCheckoutSession(user.id, checkoutId, session);
@@ -199,6 +215,11 @@ class DodoPayments {
             
         } catch (error) {
             console.error('Failed to create checkout session:', error);
+            console.error('Error details:', {
+                message: error.message,
+                stack: error.stack,
+                name: error.name
+            });
             throw error;
         }
     }
@@ -299,8 +320,55 @@ class DodoPayments {
         }, 5000);
     }
 
+    async testApiConnection() {
+        try {
+            console.log('Testing Dodo Payments API connection...');
+            console.log('API Key format check:', this.dodoApiKey.startsWith('dodo_') ? 'VALID' : 'INVALID');
+            console.log('Product ID format check:', this.productId.startsWith('prod_') ? 'VALID' : 'INVALID');
+            
+            // Test with a minimal request
+            const testResponse = await fetch('https://test.dodopayments.com/checkouts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.dodoApiKey}`
+                },
+                body: JSON.stringify({
+                    product_cart: [{ product_id: this.productId, quantity: 1 }],
+                    customer: { email: 'test@example.com', name: 'Test User' },
+                    billing_address: { street: '123 Test St', city: 'Test City', state: 'TS', country: 'US', zipcode: '12345' },
+                    return_url: window.location.href,
+                    metadata: { test: true }
+                })
+            });
+            
+            console.log('Test API response status:', testResponse.status);
+            
+            if (testResponse.ok) {
+                const testResult = await testResponse.json();
+                console.log('API connection test successful:', testResult);
+                return true;
+            } else {
+                const errorText = await testResponse.text();
+                console.error('API connection test failed:', testResponse.status, errorText);
+                return false;
+            }
+        } catch (error) {
+            console.error('API connection test error:', error);
+            return false;
+        }
+    }
+
     async initiatePayment() {
         try {
+            // Test API connection first
+            console.log('Testing API connection before payment...');
+            const connectionOk = await this.testApiConnection();
+            
+            if (!connectionOk) {
+                throw new Error('API connection test failed. Please check your API key and product ID.');
+            }
+            
             const session = await this.createCheckoutSession();
             
             // Redirect user to Dodo Payments checkout
