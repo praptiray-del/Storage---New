@@ -58,6 +58,17 @@ app.get('/', (req, res) => {
             `<meta name="supabase-api-key" content="${apiKey}">`
         );
         
+        // Inject Dodo Payments variables into meta tags
+        html = html.replace(
+            '<meta name="dodo-payments-api-key" content="">',
+            `<meta name="dodo-payments-api-key" content="${dodoApiKey}">`
+        );
+        
+        html = html.replace(
+            '<meta name="dodo-product-id" content="">',
+            `<meta name="dodo-product-id" content="${dodoProductId}">`
+        );
+        
         // Also inject as global variables in a script tag
         const scriptTag = `
             <script>

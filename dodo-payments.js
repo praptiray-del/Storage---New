@@ -6,7 +6,13 @@ class DodoPayments {
         this.authManager = authManager;
         this.dodoApiKey = ''; // Will be set from environment variables
         this.productId = ''; // Will be set from environment variables
-        this.loadConfig();
+        
+        // Wait for DOM to be ready before loading config
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => this.loadConfig());
+        } else {
+            this.loadConfig();
+        }
     }
 
     loadConfig() {
@@ -34,14 +40,19 @@ class DodoPayments {
     getDodoApiKeyFromEnvironment() {
         // Check for environment variables that might be available
         if (typeof window !== 'undefined') {
-            // Check window variables (injected by server)
-            if (window.DODO_PAYMENTS_API_KEY) {
+            // Check window variables (injected by server) - try multiple possible names
+            if (window.DODO_PAYMENTS_API_KEY && window.DODO_PAYMENTS_API_KEY.trim() !== '') {
                 return window.DODO_PAYMENTS_API_KEY;
+            }
+            
+            // Check for alternative naming conventions
+            if (window.DODO_API_KEY && window.DODO_API_KEY.trim() !== '') {
+                return window.DODO_API_KEY;
             }
             
             // Check meta tags
             const metaTag = document.querySelector('meta[name="dodo-payments-api-key"]');
-            if (metaTag && metaTag.content) {
+            if (metaTag && metaTag.content && metaTag.content.trim() !== '') {
                 return metaTag.content;
             }
         }
@@ -57,14 +68,19 @@ class DodoPayments {
     getProductIdFromEnvironment() {
         // Check for environment variables that might be available
         if (typeof window !== 'undefined') {
-            // Check window variables (injected by server)
-            if (window.DODO_PRODUCT_ID) {
+            // Check window variables (injected by server) - try multiple possible names
+            if (window.DODO_PRODUCT_ID && window.DODO_PRODUCT_ID.trim() !== '') {
                 return window.DODO_PRODUCT_ID;
+            }
+            
+            // Check for alternative naming conventions
+            if (window.DODO_PRODUCT && window.DODO_PRODUCT.trim() !== '') {
+                return window.DODO_PRODUCT;
             }
             
             // Check meta tags
             const metaTag = document.querySelector('meta[name="dodo-product-id"]');
-            if (metaTag && metaTag.content) {
+            if (metaTag && metaTag.content && metaTag.content.trim() !== '') {
                 return metaTag.content;
             }
         }
@@ -84,6 +100,15 @@ class DodoPayments {
 
         // Try to reload config in case environment variables were updated
         this.loadConfig();
+        
+        // If still not found, try a delayed reload
+        if (!this.dodoApiKey || !this.productId) {
+            console.log('Retrying config load after delay...');
+            setTimeout(() => {
+                this.loadConfig();
+                console.log('Delayed config load - API Key:', !!this.dodoApiKey, 'Product ID:', !!this.productId);
+            }, 1000);
+        }
 
         if (!this.dodoApiKey) {
             // Try to get API key from user input as fallback
