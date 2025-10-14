@@ -46,9 +46,14 @@ app.get('/', (req, res) => {
         const anonKey = process.env.SUPABASE_ANON_KEY || '';
         const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
         const apiKey = anonKey || serviceKey;
+        const dodoApiKey = process.env.DODO_PAYMENTS_API_KEY || '';
+        const dodoProductId = process.env.DODO_PRODUCT_ID || '';
+        
         console.log('Environment variables check:');
         console.log('SUPABASE_ANON_KEY:', anonKey ? 'SET' : 'NOT SET');
         console.log('SUPABASE_SERVICE_ROLE_KEY:', serviceKey ? 'SET' : 'NOT SET');
+        console.log('DODO_PAYMENTS_API_KEY:', dodoApiKey ? 'SET' : 'NOT SET');
+        console.log('DODO_PRODUCT_ID:', dodoProductId ? 'SET' : 'NOT SET');
         console.log('Using API key:', apiKey ? 'FOUND' : 'NOT FOUND');
         
         // Inject the API key into the meta tag
@@ -57,15 +62,30 @@ app.get('/', (req, res) => {
             `<meta name="supabase-api-key" content="${apiKey}">`
         );
         
+        // Inject Dodo Payments variables into meta tags
+        html = html.replace(
+            '<meta name="dodo-payments-api-key" content="">',
+            `<meta name="dodo-payments-api-key" content="${dodoApiKey}">`
+        );
+        
+        html = html.replace(
+            '<meta name="dodo-product-id" content="">',
+            `<meta name="dodo-product-id" content="${dodoProductId}">`
+        );
+        
         
         // Also inject as global variables in a script tag
         const scriptTag = `
             <script>
                 window.SUPABASE_ANON_KEY = '${anonKey}';
                 window.SUPABASE_SERVICE_ROLE_KEY = '${serviceKey}';
+                window.DODO_PAYMENTS_API_KEY = '${dodoApiKey}';
+                window.DODO_PRODUCT_ID = '${dodoProductId}';
                 console.log('API keys injected:', {
                     anonKey: '${anonKey ? 'SET' : 'NOT SET'}',
-                    serviceKey: '${serviceKey ? 'SET' : 'NOT SET'}'
+                    serviceKey: '${serviceKey ? 'SET' : 'NOT SET'}',
+                    dodoApiKey: '${dodoApiKey ? 'SET' : 'NOT SET'}',
+                    dodoProductId: '${dodoProductId ? 'SET' : 'NOT SET'}'
                 });
             </script>
         `;
@@ -93,7 +113,9 @@ app.get('/health', (req, res) => {
         timestamp: new Date().toISOString(),
         environment: {
             SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY ? 'SET' : 'NOT SET',
-            SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'NOT SET'
+            SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'NOT SET',
+            DODO_PAYMENTS_API_KEY: process.env.DODO_PAYMENTS_API_KEY ? 'SET' : 'NOT SET',
+            DODO_PRODUCT_ID: process.env.DODO_PRODUCT_ID ? 'SET' : 'NOT SET'
         }
     });
 });

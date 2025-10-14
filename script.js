@@ -4,10 +4,12 @@ class FileUploadApp {
         this.apiKey = ''; // Will be set from environment or user input
         this.selectedFiles = [];
         this.authManager = null; // Will be initialized after API key is loaded
+        this.dodoPayments = null; // Will be initialized after API key is loaded
         
         this.initializeElements();
         this.bindEvents();
         this.loadApiKey();
+        this.handlePaymentCallback();
     }
 
     initializeElements() {
@@ -42,6 +44,11 @@ class FileUploadApp {
         this.submitBtn.addEventListener('click', () => this.uploadFiles());
         this.resetBtn.addEventListener('click', () => this.resetApp());
         
+        // Payment events
+        const upgradeBtn = document.getElementById('upgradeBtn');
+        if (upgradeBtn) {
+            upgradeBtn.addEventListener('click', () => this.initiatePayment());
+        }
     }
 
     loadApiKey() {
@@ -54,10 +61,11 @@ class FileUploadApp {
             this.promptForApiKey();
         }
         
-        // Initialize authentication manager after API key is loaded
+        // Initialize authentication manager and Dodo Payments after API key is loaded
         if (this.apiKey) {
             console.log('Initializing AuthManager with API key:', this.apiKey.substring(0, 20) + '...');
             this.authManager = new AuthManager(this.supabaseUrl, this.apiKey);
+            this.dodoPayments = new DodoPayments(this.supabaseUrl, this.apiKey, this.authManager);
         } else {
             console.error('❌ No API key available for authentication');
         }
@@ -409,7 +417,35 @@ class FileUploadApp {
         this.submitBtn.disabled = false;
     }
 
+    async initiatePayment() {
+        if (!this.dodoPayments) {
+            this.showError('Payment system not initialized. Please refresh the page.');
+            return;
+        }
 
+        try {
+            await this.dodoPayments.initiatePayment();
+        } catch (error) {
+            console.error('Payment initiation failed:', error);
+            this.showError(`Payment failed: ${error.message}`);
+        }
+    }
+
+    handlePaymentCallback() {
+        // Check if this is a payment callback
+        const urlParams = new URLSearchParams(window.location.search);
+        const paymentStatus = urlParams.get('payment');
+        const checkoutId = urlParams.get('checkout_id');
+
+        if (paymentStatus === 'success' && checkoutId && this.dodoPayments) {
+            console.log('Payment success callback detected:', checkoutId);
+            this.dodoPayments.handlePaymentSuccess(checkoutId);
+            
+            // Clean up URL parameters
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, newUrl);
+        }
+    }
 }
 
 // Initialize the app when DOM is loaded
