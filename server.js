@@ -49,12 +49,17 @@ app.get('/', (req, res) => {
         const dodoApiKey = process.env.DODO_PAYMENTS_API_KEY || '';
         const dodoProductId = process.env.DODO_PRODUCT_ID || '';
         
-        console.log('Environment variables check:');
+        console.log('🔍 Environment variables check:');
         console.log('SUPABASE_ANON_KEY:', anonKey ? 'SET' : 'NOT SET');
         console.log('SUPABASE_SERVICE_ROLE_KEY:', serviceKey ? 'SET' : 'NOT SET');
         console.log('DODO_PAYMENTS_API_KEY:', dodoApiKey ? 'SET' : 'NOT SET');
         console.log('DODO_PRODUCT_ID:', dodoProductId ? 'SET' : 'NOT SET');
         console.log('Using API key:', apiKey ? 'FOUND' : 'NOT FOUND');
+        
+        if (!apiKey) {
+            console.error('❌ WARNING: No Supabase API key found in environment variables!');
+            console.error('Please set SUPABASE_ANON_KEY or SUPABASE_SERVICE_ROLE_KEY in your environment.');
+        }
         
         // Inject the API key into the meta tag
         html = html.replace(
@@ -93,6 +98,9 @@ app.get('/', (req, res) => {
         // Insert the script tag before the closing head tag
         html = html.replace('</head>', `${scriptTag}</head>`);
         
+        console.log('✅ HTML injection completed:');
+        console.log('Meta tag API key:', apiKey ? 'INJECTED' : 'EMPTY');
+        console.log('Window variables:', anonKey ? 'INJECTED' : 'EMPTY');
         console.log('Sending HTML response...');
         res.send(html);
     } catch (error) {

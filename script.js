@@ -52,18 +52,41 @@ class FileUploadApp {
     }
 
     loadApiKey() {
+        // Wait for DOM to be fully loaded before checking for API keys
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                this.loadApiKey();
+            });
+            return;
+        }
+
         // Try to get API key from environment variables first
         // This will work when deployed on Render or other platforms
         this.apiKey = this.getApiKeyFromEnvironment();
-        
-        // If no environment variable is found, prompt user
+
+        // If no environment variable is found, wait a bit and try again
         if (!this.apiKey) {
-            this.promptForApiKey();
+            console.log('⚠️ No API key found in environment, retrying in 1 second...');
+            setTimeout(() => {
+                this.apiKey = this.getApiKeyFromEnvironment();
+                if (!this.apiKey) {
+                    console.log('⚠️ Still no API key found, prompting user...');
+                    this.promptForApiKey();
+                } else {
+                    console.log('✅ Found API key on retry, initializing...');
+                    this.initializeServices();
+                }
+            }, 1000);
+            return;
         }
         
+        this.initializeServices();
+    }
+
+    initializeServices() {
         // Initialize authentication manager and Dodo Payments after API key is loaded
         if (this.apiKey) {
-            console.log('Initializing AuthManager with API key:', this.apiKey.substring(0, 20) + '...');
+            console.log('✅ Initializing AuthManager with API key:', this.apiKey.substring(0, 20) + '...');
             this.authManager = new AuthManager(this.supabaseUrl, this.apiKey);
             this.dodoPayments = new DodoPayments(this.supabaseUrl, this.apiKey, this.authManager);
         } else {
@@ -72,44 +95,56 @@ class FileUploadApp {
     }
 
     getApiKeyFromEnvironment() {
+        console.log('🔍 Searching for Supabase API key...');
+        
         // Check for environment variables that might be available
         // These are common ways environment variables are exposed in web apps
         
         // Method 1: Check for global variables (set by server.js)
         if (typeof window !== 'undefined') {
+            console.log('Checking window variables...');
+            console.log('window.SUPABASE_ANON_KEY:', window.SUPABASE_ANON_KEY ? 'SET' : 'NOT SET');
+            console.log('window.SUPABASE_SERVICE_ROLE_KEY:', window.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'NOT SET');
+            
             if (window.SUPABASE_ANON_KEY && window.SUPABASE_ANON_KEY.trim() !== '') {
-                console.log('Found API key via window.SUPABASE_ANON_KEY');
+                console.log('✅ Found API key via window.SUPABASE_ANON_KEY');
                 return window.SUPABASE_ANON_KEY;
             }
             if (window.SUPABASE_SERVICE_ROLE_KEY && window.SUPABASE_SERVICE_ROLE_KEY.trim() !== '') {
-                console.log('Found API key via window.SUPABASE_SERVICE_ROLE_KEY');
+                console.log('✅ Found API key via window.SUPABASE_SERVICE_ROLE_KEY');
                 return window.SUPABASE_SERVICE_ROLE_KEY;
             }
         }
         
         // Method 2: Check for meta tags (set by server.js)
         if (typeof document !== 'undefined') {
+            console.log('Checking meta tags...');
             const metaKey = document.querySelector('meta[name="supabase-api-key"]');
-            if (metaKey && metaKey.getAttribute('content') && metaKey.getAttribute('content').trim() !== '') {
-                console.log('Found API key via meta tag');
-                return metaKey.getAttribute('content');
+            if (metaKey) {
+                const content = metaKey.getAttribute('content');
+                console.log('Meta tag content:', content ? 'SET' : 'NOT SET');
+                if (content && content.trim() !== '') {
+                    console.log('✅ Found API key via meta tag');
+                    return content;
+                }
             }
         }
         
         // Method 3: Check if running in a server environment (Node.js)
         if (typeof process !== 'undefined' && process.env) {
+            console.log('Checking process.env...');
             if (process.env.SUPABASE_ANON_KEY && process.env.SUPABASE_ANON_KEY.trim() !== '') {
-                console.log('Found API key via process.env.SUPABASE_ANON_KEY');
+                console.log('✅ Found API key via process.env.SUPABASE_ANON_KEY');
                 return process.env.SUPABASE_ANON_KEY;
             }
             if (process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY.trim() !== '') {
-                console.log('Found API key via process.env.SUPABASE_SERVICE_ROLE_KEY');
+                console.log('✅ Found API key via process.env.SUPABASE_SERVICE_ROLE_KEY');
                 return process.env.SUPABASE_SERVICE_ROLE_KEY;
             }
         }
         
-        console.log('No API key found in environment variables');
-        return null;
+        console.log('❌ No API key found in environment variables');
+        return '';
     }
 
     promptForApiKey() {
