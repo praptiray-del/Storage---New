@@ -61,26 +61,49 @@ class FileUploadApp {
         }
 
         // Try to get API key from environment variables first
-        // This will work when deployed on Render or other platforms
         this.apiKey = this.getApiKeyFromEnvironment();
 
-        // If no environment variable is found, wait a bit and try again
+        // If no environment variable is found, wait longer for server injection
         if (!this.apiKey) {
-            console.log('⚠️ No API key found in environment, retrying in 1 second...');
-            setTimeout(() => {
-                this.apiKey = this.getApiKeyFromEnvironment();
-                if (!this.apiKey) {
-                    console.log('⚠️ Still no API key found, prompting user...');
-                    this.promptForApiKey();
-                } else {
-                    console.log('✅ Found API key on retry, initializing...');
-                    this.initializeServices();
-                }
-            }, 1000);
+            console.log('⚠️ No API key found, waiting for server injection...');
+            this.waitForServerInjection();
             return;
         }
         
         this.initializeServices();
+    }
+
+    waitForServerInjection() {
+        let attempts = 0;
+        const maxAttempts = 15; // Wait up to 15 seconds
+        
+        const checkForApiKey = () => {
+            attempts++;
+            console.log(`🔍 Attempt ${attempts}/${maxAttempts}: Checking for server injection...`);
+            
+            // Check if server injection is complete
+            if (window.SERVER_INJECTION_COMPLETE) {
+                console.log('✅ Server injection detected, checking for API key...');
+                this.apiKey = this.getApiKeyFromEnvironment();
+                
+                if (this.apiKey) {
+                    console.log('✅ Found API key after server injection, initializing...');
+                    this.initializeServices();
+                } else {
+                    console.log('❌ Server injection complete but no API key found, prompting user...');
+                    this.promptForApiKey();
+                }
+            } else if (attempts < maxAttempts) {
+                console.log(`⏳ Waiting for server injection... (${attempts}/${maxAttempts})`);
+                setTimeout(checkForApiKey, 1000);
+            } else {
+                console.log('❌ Server injection timeout, prompting user...');
+                this.promptForApiKey();
+            }
+        };
+        
+        // Start checking after a short delay to allow server injection
+        setTimeout(checkForApiKey, 500);
     }
 
     initializeServices() {
@@ -106,11 +129,12 @@ class FileUploadApp {
             console.log('window.SUPABASE_ANON_KEY:', window.SUPABASE_ANON_KEY ? 'SET' : 'NOT SET');
             console.log('window.SUPABASE_SERVICE_ROLE_KEY:', window.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'NOT SET');
             
-            if (window.SUPABASE_ANON_KEY && window.SUPABASE_ANON_KEY.trim() !== '') {
+            // Check if server injection script has run
+            if (window.SUPABASE_ANON_KEY && window.SUPABASE_ANON_KEY.trim() !== '' && window.SUPABASE_ANON_KEY !== 'undefined') {
                 console.log('✅ Found API key via window.SUPABASE_ANON_KEY');
                 return window.SUPABASE_ANON_KEY;
             }
-            if (window.SUPABASE_SERVICE_ROLE_KEY && window.SUPABASE_SERVICE_ROLE_KEY.trim() !== '') {
+            if (window.SUPABASE_SERVICE_ROLE_KEY && window.SUPABASE_SERVICE_ROLE_KEY.trim() !== '' && window.SUPABASE_SERVICE_ROLE_KEY !== 'undefined') {
                 console.log('✅ Found API key via window.SUPABASE_SERVICE_ROLE_KEY');
                 return window.SUPABASE_SERVICE_ROLE_KEY;
             }
@@ -123,7 +147,8 @@ class FileUploadApp {
             if (metaKey) {
                 const content = metaKey.getAttribute('content');
                 console.log('Meta tag content:', content ? 'SET' : 'NOT SET');
-                if (content && content.trim() !== '') {
+                console.log('Meta tag value:', content);
+                if (content && content.trim() !== '' && content !== 'undefined') {
                     console.log('✅ Found API key via meta tag');
                     return content;
                 }

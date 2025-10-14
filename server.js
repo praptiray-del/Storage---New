@@ -82,16 +82,20 @@ app.get('/', (req, res) => {
         // Also inject as global variables in a script tag
         const scriptTag = `
             <script>
+                console.log('🔧 Server injection script executing...');
                 window.SUPABASE_ANON_KEY = '${anonKey}';
                 window.SUPABASE_SERVICE_ROLE_KEY = '${serviceKey}';
                 window.DODO_PAYMENTS_API_KEY = '${dodoApiKey}';
                 window.DODO_PRODUCT_ID = '${dodoProductId}';
-                console.log('API keys injected:', {
+                console.log('✅ API keys injected by server:', {
                     anonKey: '${anonKey ? 'SET' : 'NOT SET'}',
                     serviceKey: '${serviceKey ? 'SET' : 'NOT SET'}',
                     dodoApiKey: '${dodoApiKey ? 'SET' : 'NOT SET'}',
                     dodoProductId: '${dodoProductId ? 'SET' : 'NOT SET'}'
                 });
+                // Signal that injection is complete
+                window.SERVER_INJECTION_COMPLETE = true;
+                console.log('🚀 Server injection complete, ready for client scripts');
             </script>
         `;
         
