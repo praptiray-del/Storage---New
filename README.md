@@ -1,176 +1,173 @@
 # File Upload Web App
 
-A modern, responsive web application for uploading files to Supabase storage. Users can drag and drop files or click to select files for upload.
+A modern, responsive web application for uploading files to Supabase storage with user authentication and premium upgrade functionality via Dodo Payments.
 
 ## Features
 
-- 🎨 Modern, responsive UI with gradient backgrounds
-- 📁 Support for all file types (images, videos, PDFs, text files, etc.)
-- 🖱️ Drag and drop functionality
-- 📊 Real-time upload progress
-- ✅ Success/error feedback
-- 📱 Mobile-friendly design
-- 🔒 Secure API key handling
+- 🎨 **Modern UI** - Responsive design with gradient backgrounds
+- 📁 **File Upload** - Support for all file types (images, videos, PDFs, text files, etc.)
+- 🖱️ **Drag & Drop** - Intuitive file selection interface
+- 📊 **Progress Tracking** - Real-time upload progress indicators
+- 🔐 **User Authentication** - Secure login/registration system
+- 💳 **Premium Upgrade** - Dodo Payments integration for premium features
+- 📱 **Mobile Friendly** - Responsive design for all devices
+- 🔒 **Secure** - Environment variable-based API key management
 
-## Setup Instructions
+## Tech Stack
 
-### 1. Get Your Supabase API Key
+- **Frontend**: HTML5, CSS3, JavaScript (ES6+)
+- **Backend**: Node.js with Express
+- **Database**: Supabase (PostgreSQL)
+- **Storage**: Supabase Storage
+- **Authentication**: Custom user management with Supabase
+- **Payments**: Dodo Payments API
+- **Deployment**: Render.com
 
-1. Go to your Supabase project dashboard
-2. Navigate to Settings > API
-3. Copy your `anon` or `service_role` key
+## Project Structure
 
-### 2. Local Development
+```
+├── index.html              # Main HTML file
+├── styles.css              # CSS styling and responsive design
+├── script.js               # Main JavaScript application logic
+├── auth.js                 # User authentication system
+├── dodo-payments.js        # Dodo Payments integration
+├── server.js               # Node.js server for environment variables
+├── package.json            # Node.js dependencies and scripts
+├── database-schema.sql     # Database schema for user management
+├── AUTHENTICATION_SETUP.md # Authentication setup guide
+├── BUCKET_SETUP.md         # Supabase storage setup guide
+├── RENDER_TROUBLESHOOTING.md # Deployment troubleshooting
+└── README.md               # This file
+```
 
-#### Option A: Using Node.js Server (Recommended)
+## Quick Start
+
+### 1. Clone the Repository
+
 ```bash
-# Install dependencies
-npm install
+git clone https://github.com/praptiray-del/storage.git
+cd storage
+```
 
-# Start the server
+### 2. Install Dependencies
+
+```bash
+npm install
+```
+
+### 3. Set Up Environment Variables
+
+Create a `.env` file or set these environment variables:
+
+```bash
+SUPABASE_ANON_KEY=your_supabase_anon_key_here
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here
+DODO_PAYMENTS_API_KEY=your_dodo_payments_api_key_here
+DODO_PRODUCT_ID=your_dodo_product_id_here
+```
+
+### 4. Set Up Supabase
+
+1. Create a new Supabase project
+2. Run the SQL from `database-schema.sql` to create the users table
+3. Create a storage bucket named `uploads`
+4. Configure storage policies (see `BUCKET_SETUP.md`)
+
+### 5. Start the Application
+
+```bash
 npm start
 ```
 
-#### Option B: Static File Serving
-```bash
-# Using Python
-python -m http.server 8000
+The app will be available at `http://localhost:3000`
 
-# Using Node.js (if you have http-server installed)
-npx http-server
+## Deployment
 
-# Using PHP
-php -S localhost:8000
-```
+### Deploy to Render.com
 
-### 3. Deploy to Render
-
-#### Step 1: Prepare Your Repository
-Make sure your code is pushed to GitHub (already done ✅)
-
-#### Step 2: Create a New Web Service on Render
-1. Go to [Render Dashboard](https://dashboard.render.com)
-2. Click "New +" → "Web Service"
-3. Connect your GitHub repository: `praptiray-del/storage`
-4. Configure the service:
-   - **Name**: `file-upload-app` (or your preferred name)
-   - **Environment**: `Node`
-   - **Build Command**: `npm install`
-   - **Start Command**: `npm start`
-   - **Instance Type**: `Free` (or upgrade as needed)
-
-#### Step 3: Set Environment Variables
-In the Render dashboard, go to your service → Environment tab and add:
-
-| Key | Value | Description |
-|-----|-------|-------------|
-| `SUPABASE_ANON_KEY` | `your_anon_key_here` | Your Supabase anonymous key |
-| `SUPABASE_SERVICE_ROLE_KEY` | `your_service_role_key_here` | Your Supabase service role key (optional, for admin operations) |
-
-**Note**: You only need one of these keys. Use `SUPABASE_ANON_KEY` for public access or `SUPABASE_SERVICE_ROLE_KEY` for admin operations.
-
-#### Step 4: Create Storage Bucket (Optional)
-The app will automatically try to create a storage bucket called `uploads`. If you prefer to create it manually:
-
-1. Go to your Supabase project dashboard
-2. Navigate to **Storage** → **Buckets**
-3. Click **New Bucket**
-4. Name it `uploads` (or change the bucket name in the code)
-5. Make it **Public** if you want files to be publicly accessible
-
-#### Step 5: Deploy
-Click "Create Web Service" and Render will automatically deploy your app!
-
-### 4. Environment Variable Configuration
-
-The app supports multiple methods for API key configuration:
-
-1. **Environment Variables** (Recommended for production)
+1. Connect your GitHub repository to Render
+2. Create a new Web Service
+3. Set the following environment variables:
    - `SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY`
+   - `DODO_PAYMENTS_API_KEY`
+   - `DODO_PRODUCT_ID`
+4. Deploy!
 
-2. **Meta Tag** (Set by server.js)
-   - Automatically injected when using the Node.js server
-
-3. **Global Variables** (Set by server.js)
-   - `window.SUPABASE_ANON_KEY`
-   - `window.SUPABASE_SERVICE_ROLE_KEY`
-
-4. **Manual Entry** (Fallback)
-   - Prompts user if no environment variable is found
-
-## File Structure
-
-```
-├── index.html          # Main HTML file
-├── styles.css          # CSS styling
-├── script.js           # JavaScript functionality
-├── server.js           # Node.js server for environment variable injection
-├── package.json        # Node.js dependencies and scripts
-└── README.md           # This file
-```
+For detailed deployment instructions, see `RENDER_TROUBLESHOOTING.md`
 
 ## Usage
 
-1. **Select Files**: Click the upload button or drag and drop files onto the upload area
-2. **Review**: Check the selected files in the file list
-3. **Upload**: Click "Upload Files" to start the upload process
-4. **Monitor Progress**: Watch the progress bar during upload
-5. **Complete**: View success message or error details
+### For Users
+
+1. **Register/Login** - Create an account or sign in
+2. **Upload Files** - Drag and drop or click to select files
+3. **Monitor Progress** - Watch real-time upload progress
+4. **Upgrade to Premium** - Click the "Upgrade to Premium" button for premium features
+
+### For Developers
+
+- **Authentication**: Handled by `auth.js` with Supabase integration
+- **File Upload**: Managed by `script.js` with progress tracking
+- **Payments**: Integrated via `dodo-payments.js` with Dodo Payments API
+- **Server**: Express server in `server.js` handles environment variable injection
 
 ## API Configuration
 
-The app is configured to use the Supabase storage endpoint:
-```
-https://pevqdguawonvpvnqqpnp.storage.supabase.co/storage/v1/s3
-```
+### Supabase Configuration
 
-## Browser Compatibility
+- **URL**: `https://pevqdguawonvpvnqqpnp.supabase.co`
+- **Storage**: `https://pevqdguawonvpvnqqpnp.storage.supabase.co`
+
+### Dodo Payments Configuration
+
+- **API Endpoint**: `https://test.dodopayments.com/checkouts`
+- **Environment Variables**: `DODO_PAYMENTS_API_KEY`, `DODO_PRODUCT_ID`
+
+## Security Features
+
+- ✅ Environment variable-based API key management
+- ✅ Server-side key injection (never exposed in client code)
+- ✅ User authentication with secure password hashing
+- ✅ Row Level Security (RLS) policies for data protection
+- ✅ Secure file upload with unique naming
+- ✅ Payment processing via secure Dodo Payments API
+
+## Browser Support
 
 - Chrome 60+
 - Firefox 55+
 - Safari 12+
 - Edge 79+
 
-## Security Notes
+## Contributing
 
-- API keys are securely handled via environment variables
-- Keys are injected server-side and never exposed in client-side code
-- Files are uploaded with unique timestamps to prevent conflicts
-- All uploads are authenticated with your Supabase API key
-- Environment variables are not logged or exposed in the browser
-
-## Troubleshooting
-
-### Common Issues
-
-1. **"API key is required" error**
-   - Make sure you've entered a valid Supabase API key
-   - Check that the key has storage permissions
-
-2. **Upload fails with 401/403 errors**
-   - Verify your API key is correct
-   - Ensure your Supabase project allows file uploads
-
-3. **CORS errors**
-   - Make sure your Supabase project has the correct CORS settings
-   - Try serving the app from a local server instead of opening the HTML file directly
-
-### Getting Help
-
-If you encounter issues:
-1. Check the browser console for error messages
-2. Verify your Supabase project settings
-3. Ensure your API key has the necessary permissions
-
-## Customization
-
-You can customize the app by modifying:
-- **Colors**: Update the CSS gradient values in `styles.css`
-- **File size limits**: Add validation in `script.js`
-- **Allowed file types**: Modify the `accept` attribute in the file input
-- **Upload endpoint**: Change the Supabase URL in `script.js`
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
 
 ## License
 
 This project is open source and available under the MIT License.
+
+## Support
+
+For issues and questions:
+
+1. Check the troubleshooting guides in the documentation files
+2. Review the browser console for error messages
+3. Verify your environment variables are set correctly
+4. Ensure your Supabase project is properly configured
+
+## Changelog
+
+### Latest Version
+- ✅ Clean codebase with only File Upload App components
+- ✅ User authentication system
+- ✅ File upload to Supabase storage
+- ✅ Dodo Payments integration for premium upgrades
+- ✅ Responsive design and mobile support
+- ✅ Environment variable configuration
+- ✅ Comprehensive documentation
