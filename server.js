@@ -288,28 +288,34 @@ app.post('/api/upload', requireAuth, upload.array('files', 10), async (req, res)
             console.log(`[UPLOAD] Sanitized name: ${fileName}`);
             console.log(`[UPLOAD] Size: ${file.size} bytes`);
             console.log(`[UPLOAD] Mimetype: ${file.mimetype}`);
+            console.log(`[UPLOAD] Buffer exists: ${!!file.buffer}`);
+            console.log(`[UPLOAD] Buffer length: ${file.buffer ? file.buffer.length : 0}`);
             
-            // Upload to Supabase Storage using FormData
+            // Verify buffer has content
+            if (!file.buffer || file.buffer.length === 0) {
+                console.error(`[UPLOAD] ERROR: File buffer is empty for ${file.originalname}`);
+                failedFiles.push({
+                    name: file.originalname,
+                    error: 'Empty file buffer'
+                });
+                continue;
+            }
+            
+            // Upload to Supabase Storage (raw binary data)
             const uploadUrl = `${supabaseUrl}/storage/v1/object/${bucketName}/${fileName}`;
             console.log(`[UPLOAD] Uploading to: ${uploadUrl}`);
-            console.log(`[UPLOAD] File buffer length: ${file.buffer.length}`);
-            
-            // Create FormData for proper multipart upload to Supabase
-            const FormData = require('form-data');
-            const formData = new FormData();
-            formData.append('file', file.buffer, {
-                filename: fileName,
-                contentType: file.mimetype || 'application/octet-stream'
-            });
+            console.log(`[UPLOAD] Content-Type: ${file.mimetype || 'application/octet-stream'}`);
             
             const uploadResponse = await fetch(uploadUrl, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${apiKey}`,
                     'apikey': apiKey,
-                    ...formData.getHeaders()
+                    'Content-Type': file.mimetype || 'application/octet-stream',
+                    'Content-Length': file.buffer.length.toString(),
+                    'x-upsert': 'false'
                 },
-                body: formData
+                body: file.buffer
             });
             
             console.log(`[UPLOAD] Storage response status: ${uploadResponse.status}`);
