@@ -6,9 +6,16 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const multer = require('multer');
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Initialize Supabase client
+const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY
+);
 
 // Configure multer for file uploads (in-memory storage)
 const upload = multer({ 
@@ -274,8 +281,6 @@ app.post('/api/upload', requireAuth, upload.array('files', 10), async (req, res)
         
         const uploadedFiles = [];
         const failedFiles = [];
-        const supabaseUrl = process.env.SUPABASE_URL;
-        const apiKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
         
         // Upload each file to Supabase
         for (const file of req.files) {
@@ -301,66 +306,46 @@ app.post('/api/upload', requireAuth, upload.array('files', 10), async (req, res)
                 continue;
             }
             
-            // Upload to Supabase Storage (raw binary data)
-            const uploadUrl = `${supabaseUrl}/storage/v1/object/${bucketName}/${fileName}`;
-            console.log(`[UPLOAD] Uploading to: ${uploadUrl}`);
-            console.log(`[UPLOAD] Content-Type: ${file.mimetype || 'application/octet-stream'}`);
+            // Upload to Supabase Storage using official client
+            console.log(`[UPLOAD] Uploading to Supabase Storage: ${bucketName}/${fileName}`);
             
-            const uploadResponse = await fetch(uploadUrl, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'apikey': apiKey,
-                    'Content-Type': file.mimetype || 'application/octet-stream',
-                    'Content-Length': file.buffer.length.toString(),
-                    'x-upsert': 'false'
-                },
-                body: file.buffer
-            });
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from(bucketName)
+                .upload(fileName, file.buffer, {
+                    contentType: file.mimetype || 'application/octet-stream',
+                    upsert: false
+                });
             
-            console.log(`[UPLOAD] Storage response status: ${uploadResponse.status}`);
-            
-            if (!uploadResponse.ok) {
-                const errorText = await uploadResponse.text();
-                console.error(`[UPLOAD] Storage upload failed for ${file.originalname}:`, errorText);
+            if (uploadError) {
+                console.error(`[UPLOAD] Storage upload failed for ${file.originalname}:`, uploadError);
                 failedFiles.push({
                     name: file.originalname,
-                    error: errorText
+                    error: uploadError.message
                 });
                 continue;
             }
             
-            const uploadResult = await uploadResponse.json();
-            console.log(`[UPLOAD] Storage upload successful:`, uploadResult);
+            console.log(`[UPLOAD] Storage upload successful:`, uploadData);
             
-            // Track upload in database
+            // Track upload in database using Supabase client
             try {
-                const trackingUrl = `${supabaseUrl}/rest/v1/user_uploads`;
                 console.log(`[UPLOAD] Tracking in database...`);
                 
-                const trackingResponse = await fetch(trackingUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${apiKey}`,
-                        'apikey': apiKey,
-                        'Content-Type': 'application/json',
-                        'Prefer': 'return=minimal'
-                    },
-                    body: JSON.stringify({
+                const { error: dbError } = await supabase
+                    .from('user_uploads')
+                    .insert({
                         user_id: req.user.id,
                         file_name: file.originalname,
                         file_size: file.size,
                         file_type: file.mimetype,
                         storage_path: `${bucketName}/${fileName}`
-                    })
-                });
+                    });
                 
-                if (!trackingResponse.ok) {
-                    const trackError = await trackingResponse.text();
-                    console.error(`[UPLOAD] Database tracking failed:`, trackError);
+                if (dbError) {
+                    console.error(`[UPLOAD] Database tracking failed:`, dbError);
                     failedFiles.push({
                         name: file.originalname,
-                        error: 'Failed to track in database: ' + trackError
+                        error: 'Failed to track in database: ' + dbError.message
                     });
                     continue;
                 }
