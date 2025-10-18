@@ -289,17 +289,27 @@ app.post('/api/upload', requireAuth, upload.array('files', 10), async (req, res)
             console.log(`[UPLOAD] Size: ${file.size} bytes`);
             console.log(`[UPLOAD] Mimetype: ${file.mimetype}`);
             
-            // Upload to Supabase Storage
+            // Upload to Supabase Storage using FormData
             const uploadUrl = `${supabaseUrl}/storage/v1/object/${bucketName}/${fileName}`;
             console.log(`[UPLOAD] Uploading to: ${uploadUrl}`);
+            console.log(`[UPLOAD] File buffer length: ${file.buffer.length}`);
+            
+            // Create FormData for proper multipart upload to Supabase
+            const FormData = require('form-data');
+            const formData = new FormData();
+            formData.append('file', file.buffer, {
+                filename: fileName,
+                contentType: file.mimetype || 'application/octet-stream'
+            });
             
             const uploadResponse = await fetch(uploadUrl, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${apiKey}`,
-                    'Content-Type': file.mimetype || 'application/octet-stream'
+                    'apikey': apiKey,
+                    ...formData.getHeaders()
                 },
-                body: file.buffer
+                body: formData
             });
             
             console.log(`[UPLOAD] Storage response status: ${uploadResponse.status}`);
