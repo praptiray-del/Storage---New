@@ -27,6 +27,8 @@ class FileUploadApp {
         this.errorMessage = document.getElementById('errorMessage');
         this.errorText = document.getElementById('errorText');
         this.resetBtn = document.getElementById('resetBtn');
+        this.uploadedFilesSection = document.getElementById('uploadedFilesSection');
+        this.uploadedFilesList = document.getElementById('uploadedFilesList');
     }
 
     bindEvents() {
@@ -56,6 +58,11 @@ class FileUploadApp {
         this.authManager = new AuthManager();
         // Initialize Dodo Payments
         this.dodoPayments = new DodoPayments(this.authManager);
+        
+        // Load uploaded files if user is authenticated
+        if (this.authManager && this.authManager.isUserAuthenticated()) {
+            this.loadUploadedFiles();
+        }
     }
 
     handleDragOver(e) {
@@ -175,6 +182,9 @@ class FileUploadApp {
             this.updateProgress(100, `Successfully uploaded ${result.files.length} files`);
             this.showSuccess();
             
+            // Reload uploaded files list
+            await this.loadUploadedFiles();
+            
         } catch (error) {
             console.error('Upload error:', error);
             this.showError(`Upload failed: ${error.message}`);
@@ -245,6 +255,109 @@ class FileUploadApp {
             // Clean up URL parameters
             const newUrl = window.location.pathname;
             window.history.replaceState({}, document.title, newUrl);
+        }
+    }
+
+    async loadUploadedFiles() {
+        if (!this.authManager || !this.authManager.isUserAuthenticated()) {
+            return;
+        }
+
+        try {
+            const sessionToken = this.authManager.getSessionToken();
+            if (!sessionToken) {
+                return;
+            }
+
+            const response = await fetch('/api/files', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${sessionToken}`
+                }
+            });
+
+            if (!response.ok) {
+                console.error('Failed to load uploaded files');
+                return;
+            }
+
+            const files = await response.json();
+            console.log('Loaded uploaded files:', files);
+            this.displayUploadedFiles(files);
+            
+        } catch (error) {
+            console.error('Error loading uploaded files:', error);
+        }
+    }
+
+    displayUploadedFiles(files) {
+        if (!this.uploadedFilesSection || !this.uploadedFilesList) {
+            return;
+        }
+
+        if (!files || files.length === 0) {
+            this.uploadedFilesSection.style.display = 'block';
+            this.uploadedFilesList.innerHTML = '<p class="no-files-text">No files uploaded yet.</p>';
+            return;
+        }
+
+        this.uploadedFilesSection.style.display = 'block';
+        this.uploadedFilesList.innerHTML = '';
+
+        files.forEach(file => {
+            const fileItem = document.createElement('div');
+            fileItem.className = 'uploaded-file-item';
+            
+            const icon = this.getFileIcon(file.fileType);
+            const size = this.formatFileSize(file.fileSize);
+            const date = new Date(file.uploadedAt).toLocaleString();
+            
+            fileItem.innerHTML = `
+                <i class="fas ${icon} file-icon"></i>
+                <div class="file-details">
+                    <div class="file-name">${file.fileName}</div>
+                    <div class="file-meta">
+                        <span class="file-size">${size}</span>
+                        <span class="file-date">${date}</span>
+                    </div>
+                </div>
+                <button class="delete-file-btn" data-file-id="${file.id}" title="Delete file">
+                    <i class="fas fa-trash"></i>
+                </button>
+            `;
+            
+            // Add delete button event
+            const deleteBtn = fileItem.querySelector('.delete-file-btn');
+            deleteBtn.addEventListener('click', () => this.deleteFile(file.id));
+            
+            this.uploadedFilesList.appendChild(fileItem);
+        });
+    }
+
+    async deleteFile(fileId) {
+        if (!confirm('Are you sure you want to delete this file?')) {
+            return;
+        }
+
+        try {
+            const sessionToken = this.authManager.getSessionToken();
+            const response = await fetch(`/api/files/${fileId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${sessionToken}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete file');
+            }
+
+            console.log('File deleted successfully');
+            await this.loadUploadedFiles();
+            
+        } catch (error) {
+            console.error('Error deleting file:', error);
+            alert('Failed to delete file: ' + error.message);
         }
     }
 }
