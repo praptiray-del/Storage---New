@@ -349,7 +349,7 @@ app.get('/api/files', requireAuth, async (req, res) => {
         console.log('Fetching files for user:', req.user.username);
         
         // Fetch user's uploads from Supabase
-        const url = `${process.env.SUPABASE_URL}/rest/v1/uploads?user_id=eq.${req.user.id}&select=*&order=uploaded_at.desc`;
+        const url = `${process.env.SUPABASE_URL}/rest/v1/user_uploads?user_id=eq.${req.user.id}&select=*&order=uploaded_at.desc`;
         const response = await fetch(url, {
             headers: {
                 'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY}`,
@@ -392,7 +392,7 @@ app.delete('/api/files/:fileId', requireAuth, async (req, res) => {
         console.log('Deleting file:', fileId, 'for user:', req.user.username);
         
         // Fetch the file details from Supabase
-        const fetchUrl = `${process.env.SUPABASE_URL}/rest/v1/uploads?id=eq.${fileId}&user_id=eq.${req.user.id}&select=*`;
+        const fetchUrl = `${process.env.SUPABASE_URL}/rest/v1/user_uploads?id=eq.${fileId}&user_id=eq.${req.user.id}&select=*`;
         const fetchResponse = await fetch(fetchUrl, {
             headers: {
                 'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY}`,
@@ -423,7 +423,7 @@ app.delete('/api/files/:fileId', requireAuth, async (req, res) => {
         });
         
         // Delete from database
-        const deleteUrl = `${process.env.SUPABASE_URL}/rest/v1/uploads?id=eq.${fileId}&user_id=eq.${req.user.id}`;
+        const deleteUrl = `${process.env.SUPABASE_URL}/rest/v1/user_uploads?id=eq.${fileId}&user_id=eq.${req.user.id}`;
         const deleteResponse = await fetch(deleteUrl, {
             method: 'DELETE',
             headers: {
