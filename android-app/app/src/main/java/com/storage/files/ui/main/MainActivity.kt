@@ -43,9 +43,8 @@ class MainActivity : AppCompatActivity() {
         setupObservers()
         setupListeners()
 
-        // Load user data and files
+        // Check session first, then load files
         authViewModel.checkSession(this)
-        filesViewModel.loadFiles()
     }
 
     private fun setupRecyclerView() {
@@ -69,6 +68,8 @@ class MainActivity : AppCompatActivity() {
                 val status = if (user.isPremium) "Premium User ⭐" else "Free User"
                 premiumStatusText.text = status
                 supportActionBar?.title = "Welcome, ${user.username}"
+                // Load files after user is confirmed
+                filesViewModel.loadFiles()
             }
         }
 

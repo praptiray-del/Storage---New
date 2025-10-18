@@ -57,11 +57,21 @@ function sanitizeFileName(fileName) {
 function requireAuth(req, res, next) {
     const sessionToken = req.headers['authorization']?.replace('Bearer ', '');
     
-    if (!sessionToken || !sessions.has(sessionToken)) {
-        return res.status(401).json({ error: 'Unauthorized' });
+    console.log('Auth check - Token:', sessionToken ? sessionToken.substring(0, 10) + '...' : 'none');
+    console.log('Auth check - Active sessions:', sessions.size);
+    
+    if (!sessionToken) {
+        console.log('Auth failed: No token provided');
+        return res.status(401).json({ error: 'Unauthorized - No token provided' });
+    }
+    
+    if (!sessions.has(sessionToken)) {
+        console.log('Auth failed: Token not found in sessions');
+        return res.status(401).json({ error: 'Unauthorized - Invalid or expired session. Please login again.' });
     }
     
     req.user = sessions.get(sessionToken);
+    console.log('Auth success for user:', req.user.username);
     next();
 }
 
@@ -184,6 +194,8 @@ app.post('/api/auth/login', async (req, res) => {
         });
         
         console.log('User logged in successfully:', username);
+        console.log('Session token created:', sessionToken.substring(0, 10) + '...');
+        console.log('Total active sessions:', sessions.size);
         res.json({
             success: true,
             sessionToken,
