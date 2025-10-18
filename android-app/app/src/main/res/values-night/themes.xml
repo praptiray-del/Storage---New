@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark theme. -->
+    <style name="Base.Theme.StorageFiles" parent="Theme.Material3.Dark">
+        <item name="colorPrimary">@color/md_theme_dark_primary</item>
+        <item name="colorOnPrimary">@color/md_theme_dark_onPrimary</item>
+        <item name="colorPrimaryContainer">@color/md_theme_dark_primaryContainer</item>
+        <item name="colorSecondary">@color/md_theme_dark_secondary</item>
+        <item name="colorOnSecondary">@color/md_theme_dark_onSecondary</item>
+        <item name="android:colorBackground">@color/md_theme_dark_background</item>
+        <item name="colorSurface">@color/md_theme_dark_surface</item>
+        <item name="colorError">@color/md_theme_dark_error</item>
+    </style>
+
+    <style name="Theme.StorageFiles" parent="Base.Theme.StorageFiles">
+        <item name="android:statusBarColor">@color/md_theme_dark_primary</item>
+    </style>
+</resources>
+

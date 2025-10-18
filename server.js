@@ -297,6 +297,109 @@ app.post('/api/upload', requireAuth, upload.array('files', 10), async (req, res)
     }
 });
 
+// Get user's uploaded files
+app.get('/api/files', requireAuth, async (req, res) => {
+    try {
+        console.log('Fetching files for user:', req.user.username);
+        
+        // Fetch user's uploads from Supabase
+        const url = `${process.env.SUPABASE_URL}/rest/v1/uploads?user_id=eq.${req.user.id}&select=*&order=uploaded_at.desc`;
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY}`,
+                'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            console.error('Failed to fetch files from Supabase');
+            return res.status(500).json({ error: 'Failed to fetch files' });
+        }
+        
+        const uploads = await response.json();
+        
+        // Transform data to match Android app's expected format
+        const files = uploads.map(upload => ({
+            id: upload.id,
+            userId: upload.user_id,
+            fileName: upload.file_name,
+            fileSize: upload.file_size,
+            fileType: upload.file_type || 'unknown',
+            uploadedAt: upload.uploaded_at,
+            fileUrl: `${process.env.SUPABASE_URL}/storage/v1/object/public/uploads/${upload.file_name}`
+        }));
+        
+        console.log(`Found ${files.length} files for user`);
+        res.json(files);
+        
+    } catch (error) {
+        console.error('Error fetching files:', error);
+        res.status(500).json({ error: 'Failed to fetch files' });
+    }
+});
+
+// Delete user's file
+app.delete('/api/files/:fileId', requireAuth, async (req, res) => {
+    try {
+        const fileId = req.params.fileId;
+        console.log('Deleting file:', fileId, 'for user:', req.user.username);
+        
+        // Fetch the file details from Supabase
+        const fetchUrl = `${process.env.SUPABASE_URL}/rest/v1/uploads?id=eq.${fileId}&user_id=eq.${req.user.id}&select=*`;
+        const fetchResponse = await fetch(fetchUrl, {
+            headers: {
+                'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY}`,
+                'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!fetchResponse.ok) {
+            return res.status(404).json({ error: 'File not found' });
+        }
+        
+        const files = await fetchResponse.json();
+        if (files.length === 0) {
+            return res.status(404).json({ error: 'File not found' });
+        }
+        
+        const file = files[0];
+        
+        // Delete from Supabase Storage
+        const storageUrl = `${process.env.SUPABASE_URL}/storage/v1/object/uploads/${file.file_name}`;
+        await fetch(storageUrl, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY}`,
+                'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY
+            }
+        });
+        
+        // Delete from database
+        const deleteUrl = `${process.env.SUPABASE_URL}/rest/v1/uploads?id=eq.${fileId}&user_id=eq.${req.user.id}`;
+        const deleteResponse = await fetch(deleteUrl, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY}`,
+                'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!deleteResponse.ok) {
+            return res.status(500).json({ error: 'Failed to delete file from database' });
+        }
+        
+        console.log('File deleted successfully');
+        res.json({ success: true, message: 'File deleted successfully' });
+        
+    } catch (error) {
+        console.error('Delete error:', error);
+        res.status(500).json({ error: 'Failed to delete file' });
+    }
+});
+
 // ===================================
 // PAYMENT API ENDPOINTS
 // ===================================

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Storage Files</string>
+    
+    <!-- Authentication -->
+    <string name="login">Login</string>
+    <string name="register">Register</string>
+    <string name="username">Username</string>
+    <string name="email">Email (optional)</string>
+    <string name="password">Password</string>
+    <string name="confirm_password">Confirm Password</string>
+    <string name="login_subtitle">Sign in to your account</string>
+    <string name="create_account">Create Account</string>
+    <string name="back_to_login">Back to Login</string>
+    
+    <!-- Main -->
+    <string name="welcome">Welcome</string>
+    <string name="free_user">Free User</string>
+    <string name="premium_user">Premium User ⭐</string>
+    <string name="your_files">Your Files</string>
+    
+    <!-- File Upload -->
+    <string name="upload_files">Upload Files</string>
+    <string name="select_files">Select Files</string>
+    <string name="selected_files">Selected Files</string>
+    <string name="upload">Upload</string>
+    <string name="uploading">Uploading…</string>
+    
+    <!-- File Item -->
+    <string name="file_name">File Name</string>
+    <string name="file_size">File Size</string>
+    <string name="upload_date">Upload Date</string>
+    <string name="file_icon">File Icon</string>
+    <string name="delete_file">Delete File</string>
+    <string name="remove_file">Remove File</string>
+    
+    <!-- Menu -->
+    <string name="action_refresh">Refresh</string>
+    <string name="action_logout">Logout</string>
+    
+    <!-- Messages -->
+    <string name="no_files">No files uploaded yet</string>
+    <string name="upload_success">Files uploaded successfully!</string>
+    <string name="upload_failed">Upload failed</string>
+    <string name="delete_success">File deleted successfully</string>
+    <string name="delete_failed">Delete failed</string>
+</resources>
+

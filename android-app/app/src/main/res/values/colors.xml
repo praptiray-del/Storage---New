@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    
+    <!-- Material Design 3 colors -->
+    <color name="md_theme_light_primary">#006C4C</color>
+    <color name="md_theme_light_onPrimary">#FFFFFF</color>
+    <color name="md_theme_light_primaryContainer">#89F8C7</color>
+    <color name="md_theme_light_secondary">#4D6357</color>
+    <color name="md_theme_light_onSecondary">#FFFFFF</color>
+    <color name="md_theme_light_background">#FBFDF9</color>
+    <color name="md_theme_light_surface">#FBFDF9</color>
+    <color name="md_theme_light_error">#BA1A1A</color>
+    
+    <color name="md_theme_dark_primary">#6CDBAC</color>
+    <color name="md_theme_dark_onPrimary">#003826</color>
+    <color name="md_theme_dark_primaryContainer">#005138</color>
+    <color name="md_theme_dark_secondary">#B1CCBE</color>
+    <color name="md_theme_dark_onSecondary">#1D352A</color>
+    <color name="md_theme_dark_background">#191C1A</color>
+    <color name="md_theme_dark_surface">#191C1A</color>
+    <color name="md_theme_dark_error">#FFB4AB</color>
+</resources>
+
