@@ -190,7 +190,8 @@ app.post('/api/auth/login', async (req, res) => {
             user: {
                 id: user.id,
                 username: user.username,
-                email: user.email
+                email: user.email,
+                is_premium: user.is_premium || false
             }
         });
         
@@ -201,8 +202,41 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // Get current user
-app.get('/api/auth/me', requireAuth, (req, res) => {
-    res.json({ user: req.user });
+app.get('/api/auth/me', requireAuth, async (req, res) => {
+    try {
+        // Fetch full user details from Supabase
+        const url = `${process.env.SUPABASE_URL}/rest/v1/users?id=eq.${req.user.id}&select=*`;
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY}`,
+                'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        const users = await response.json();
+        if (users.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        const user = users[0];
+        
+        // Return user data in the format Android app expects
+        res.json({
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            isPremium: user.is_premium || false,
+            createdAt: user.created_at
+        });
+    } catch (error) {
+        console.error('Error fetching user:', error);
+        res.status(500).json({ error: 'Failed to fetch user' });
+    }
 });
 
 // Logout user
