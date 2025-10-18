@@ -11,33 +11,38 @@ A modern, responsive web application for uploading files to Supabase storage wit
 - 🔐 **User Authentication** - Secure login/registration system
 - 💳 **Premium Upgrade** - Dodo Payments integration for premium features
 - 📱 **Mobile Friendly** - Responsive design for all devices
-- 🔒 **Secure** - Environment variable-based API key management
+- 🔒 **Secure** - Backend-centric architecture with zero credential exposure
+- 🚀 **RESTful API** - All business logic handled by backend
 
 ## Tech Stack
 
-- **Frontend**: HTML5, CSS3, JavaScript (ES6+)
-- **Backend**: Node.js with Express
+- **Frontend**: HTML5, CSS3, JavaScript (ES6+) - Pure UI layer, no business logic
+- **Backend**: Node.js with Express - RESTful API with all business logic
 - **Database**: Supabase (PostgreSQL)
 - **Storage**: Supabase Storage
-- **Authentication**: Custom user management with Supabase
-- **Payments**: Dodo Payments API
+- **Authentication**: Session-based authentication with backend API
+- **Payments**: Dodo Payments API (backend integration)
+- **File Upload**: Multer for multipart/form-data
 - **Deployment**: Render.com
 
 ## Project Structure
 
 ```
-├── index.html              # Main HTML file
-├── styles.css              # CSS styling and responsive design
-├── script.js               # Main JavaScript application logic
-├── auth.js                 # User authentication system
-├── dodo-payments.js        # Dodo Payments integration
-├── server.js               # Node.js server for environment variables
-├── package.json            # Node.js dependencies and scripts
-├── database-schema.sql     # Database schema for user management
-├── AUTHENTICATION_SETUP.md # Authentication setup guide
-├── BUCKET_SETUP.md         # Supabase storage setup guide
-├── RENDER_TROUBLESHOOTING.md # Deployment troubleshooting
-└── README.md               # This file
+├── index.html                 # Main HTML file (no credentials)
+├── styles.css                 # CSS styling and responsive design
+├── script.js                  # Frontend UI logic (no business logic)
+├── auth.js                    # Frontend auth UI (calls backend API)
+├── dodo-payments.js           # Frontend payment UI (calls backend API)
+├── server.js                  # Backend API server with all business logic
+├── package.json               # Node.js dependencies (Express, Multer)
+├── env.example                # Environment variables template
+├── database-schema.sql        # Database schema for user management
+├── ARCHITECTURE.md            # Architecture documentation
+├── REFACTORING_SUMMARY.md     # Refactoring details
+├── AUTHENTICATION_SETUP.md    # Authentication setup guide
+├── BUCKET_SETUP.md            # Supabase storage setup guide
+├── RENDER_TROUBLESHOOTING.md  # Deployment troubleshooting
+└── README.md                  # This file
 ```
 
 ## Quick Start
@@ -57,14 +62,18 @@ npm install
 
 ### 3. Set Up Environment Variables
 
-Create a `.env` file or set these environment variables:
+Create a `.env` file (copy from `env.example`) and set these variables:
 
 ```bash
+SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your_supabase_anon_key_here
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here
 DODO_PAYMENTS_API_KEY=your_dodo_payments_api_key_here
 DODO_PRODUCT_ID=your_dodo_product_id_here
+PORT=3000
 ```
+
+**Important:** All these variables must be set on the server. They are never exposed to the frontend.
 
 ### 4. Set Up Supabase
 
@@ -87,11 +96,13 @@ The app will be available at `http://localhost:3000`
 
 1. Connect your GitHub repository to Render
 2. Create a new Web Service
-3. Set the following environment variables:
+3. Set the following environment variables in Render dashboard:
+   - `SUPABASE_URL`
    - `SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY`
    - `DODO_PAYMENTS_API_KEY`
    - `DODO_PRODUCT_ID`
+   - `PORT` (optional, defaults to 3000)
 4. Deploy!
 
 For detailed deployment instructions, see `RENDER_TROUBLESHOOTING.md`
@@ -107,31 +118,50 @@ For detailed deployment instructions, see `RENDER_TROUBLESHOOTING.md`
 
 ### For Developers
 
-- **Authentication**: Handled by `auth.js` with Supabase integration
-- **File Upload**: Managed by `script.js` with progress tracking
-- **Payments**: Integrated via `dodo-payments.js` with Dodo Payments API
-- **Server**: Express server in `server.js` handles environment variable injection
+- **Frontend**: Pure UI layer - no business logic, no API keys
+  - `auth.js`: Authentication UI → calls `/api/auth/*` endpoints
+  - `script.js`: Upload UI → calls `/api/upload` endpoint
+  - `dodo-payments.js`: Payment UI → calls `/api/payment/*` endpoint
 
-## API Configuration
+- **Backend**: RESTful API with all business logic in `server.js`
+  - Authentication endpoints: register, login, logout, get user
+  - File upload endpoint: validates, sanitizes, uploads to Supabase
+  - Payment endpoint: creates Dodo Payments checkout session
+  - Session management: in-memory token-based authentication
 
-### Supabase Configuration
+See `ARCHITECTURE.md` for detailed API documentation.
 
-- **URL**: `https://pevqdguawonvpvnqqpnp.supabase.co`
-- **Storage**: `https://pevqdguawonvpvnqqpnp.storage.supabase.co`
+## Backend API Endpoints
 
-### Dodo Payments Configuration
+All endpoints are accessible at `/api/*`:
 
-- **API Endpoint**: `https://test.dodopayments.com/checkouts`
-- **Environment Variables**: `DODO_PAYMENTS_API_KEY`, `DODO_PRODUCT_ID`
+### Authentication
+- `POST /api/auth/register` - Register new user
+- `POST /api/auth/login` - Login (returns session token)
+- `GET /api/auth/me` - Get current user (requires auth)
+- `POST /api/auth/logout` - Logout (requires auth)
+
+### Files
+- `POST /api/upload` - Upload files (requires auth)
+
+### Payments
+- `POST /api/payment/create-checkout` - Create checkout session (requires auth)
+
+### Utility
+- `GET /health` - Health check and environment status
+
+For detailed API documentation, see `ARCHITECTURE.md`.
 
 ## Security Features
 
-- ✅ Environment variable-based API key management
-- ✅ Server-side key injection (never exposed in client code)
-- ✅ User authentication with secure password hashing
-- ✅ Row Level Security (RLS) policies for data protection
-- ✅ Secure file upload with unique naming
-- ✅ Payment processing via secure Dodo Payments API
+- ✅ **Zero Client-Side Secrets** - No API keys or credentials in frontend code
+- ✅ **Backend-Only Business Logic** - All sensitive operations server-side
+- ✅ **Session-Based Authentication** - Token-based auth with server validation
+- ✅ **Server-Side Password Hashing** - SHA-256 with salt (backend only)
+- ✅ **File Sanitization** - Backend validates and sanitizes all uploads
+- ✅ **Environment Variables** - All secrets in server environment only
+- ✅ **RESTful API** - Clean separation between UI and logic
+- ✅ **Authorization** - All protected endpoints require valid session token
 
 ## Browser Support
 
@@ -163,11 +193,23 @@ For issues and questions:
 
 ## Changelog
 
-### Latest Version
-- ✅ Clean codebase with only File Upload App components
+### v2.0.0 - Backend-Centric Refactor (Latest)
+- 🔒 **SECURITY**: Completely refactored to backend-centric architecture
+- ✅ Removed all API keys from frontend (HTML, JavaScript)
+- ✅ Created RESTful API with 7 endpoints
+- ✅ Moved all business logic to backend (auth, upload, payments)
+- ✅ Implemented session-based authentication
+- ✅ Added server-side password hashing
+- ✅ Added server-side file sanitization
+- ✅ Simplified frontend (60% code reduction)
+- ✅ Added comprehensive documentation (ARCHITECTURE.md, REFACTORING_SUMMARY.md)
+- ✅ Added environment variable template (env.example)
+- ✅ Zero credentials exposed to client
+
+### v1.0.0 - Initial Release
+- ✅ Clean codebase with File Upload App components
 - ✅ User authentication system
 - ✅ File upload to Supabase storage
 - ✅ Dodo Payments integration for premium upgrades
 - ✅ Responsive design and mobile support
 - ✅ Environment variable configuration
-- ✅ Comprehensive documentation

@@ -1,14 +1,14 @@
+// File Upload App - Frontend (No Business Logic)
+// All business logic is handled by backend API
 class FileUploadApp {
     constructor() {
-        this.supabaseUrl = 'https://pevqdguawonvpvnqqpnp.supabase.co';
-        this.apiKey = ''; // Will be set from environment or user input
         this.selectedFiles = [];
-        this.authManager = null; // Will be initialized after API key is loaded
-        this.dodoPayments = null; // Will be initialized after API key is loaded
+        this.authManager = null;
+        this.dodoPayments = null;
         
         this.initializeElements();
         this.bindEvents();
-        this.loadApiKey();
+        this.initializeServices();
         this.handlePaymentCallback();
     }
 
@@ -51,134 +51,11 @@ class FileUploadApp {
         }
     }
 
-    loadApiKey() {
-        // Wait for DOM to be fully loaded before checking for API keys
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => {
-                this.loadApiKey();
-            });
-            return;
-        }
-
-        // Try to get API key from environment variables first
-        this.apiKey = this.getApiKeyFromEnvironment();
-
-        // If no environment variable is found, wait longer for server injection
-        if (!this.apiKey) {
-            console.log('⚠️ No API key found, waiting for server injection...');
-            this.waitForServerInjection();
-            return;
-        }
-        
-        this.initializeServices();
-    }
-
-    waitForServerInjection() {
-        let attempts = 0;
-        const maxAttempts = 15; // Wait up to 15 seconds
-        
-        const checkForApiKey = () => {
-            attempts++;
-            console.log(`🔍 Attempt ${attempts}/${maxAttempts}: Checking for server injection...`);
-            
-            // Check if server injection is complete
-            if (window.SERVER_INJECTION_COMPLETE) {
-                console.log('✅ Server injection detected, checking for API key...');
-                this.apiKey = this.getApiKeyFromEnvironment();
-                
-                if (this.apiKey) {
-                    console.log('✅ Found API key after server injection, initializing...');
-                    this.initializeServices();
-                } else {
-                    console.log('❌ Server injection complete but no API key found, prompting user...');
-                    this.promptForApiKey();
-                }
-            } else if (attempts < maxAttempts) {
-                console.log(`⏳ Waiting for server injection... (${attempts}/${maxAttempts})`);
-                setTimeout(checkForApiKey, 1000);
-            } else {
-                console.log('❌ Server injection timeout, prompting user...');
-                this.promptForApiKey();
-            }
-        };
-        
-        // Start checking after a short delay to allow server injection
-        setTimeout(checkForApiKey, 500);
-    }
-
     initializeServices() {
-        // Initialize authentication manager and Dodo Payments after API key is loaded
-        if (this.apiKey) {
-            console.log('✅ Initializing AuthManager with API key:', this.apiKey.substring(0, 20) + '...');
-            this.authManager = new AuthManager(this.supabaseUrl, this.apiKey);
-            this.dodoPayments = new DodoPayments(this.supabaseUrl, this.apiKey, this.authManager);
-        } else {
-            console.error('❌ No API key available for authentication');
-        }
-    }
-
-    getApiKeyFromEnvironment() {
-        console.log('🔍 Searching for Supabase API key...');
-        
-        // Check for environment variables that might be available
-        // These are common ways environment variables are exposed in web apps
-        
-        // Method 1: Check for global variables (set by server.js)
-        if (typeof window !== 'undefined') {
-            console.log('Checking window variables...');
-            console.log('window.SUPABASE_ANON_KEY:', window.SUPABASE_ANON_KEY ? 'SET' : 'NOT SET');
-            console.log('window.SUPABASE_SERVICE_ROLE_KEY:', window.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'NOT SET');
-            
-            // Check if server injection script has run
-            if (window.SUPABASE_ANON_KEY && window.SUPABASE_ANON_KEY.trim() !== '' && window.SUPABASE_ANON_KEY !== 'undefined') {
-                console.log('✅ Found API key via window.SUPABASE_ANON_KEY');
-                return window.SUPABASE_ANON_KEY;
-            }
-            if (window.SUPABASE_SERVICE_ROLE_KEY && window.SUPABASE_SERVICE_ROLE_KEY.trim() !== '' && window.SUPABASE_SERVICE_ROLE_KEY !== 'undefined') {
-                console.log('✅ Found API key via window.SUPABASE_SERVICE_ROLE_KEY');
-                return window.SUPABASE_SERVICE_ROLE_KEY;
-            }
-        }
-        
-        // Method 2: Check for meta tags (set by server.js)
-        if (typeof document !== 'undefined') {
-            console.log('Checking meta tags...');
-            const metaKey = document.querySelector('meta[name="supabase-api-key"]');
-            if (metaKey) {
-                const content = metaKey.getAttribute('content');
-                console.log('Meta tag content:', content ? 'SET' : 'NOT SET');
-                console.log('Meta tag value:', content);
-                if (content && content.trim() !== '' && content !== 'undefined') {
-                    console.log('✅ Found API key via meta tag');
-                    return content;
-                }
-            }
-        }
-        
-        // Method 3: Check if running in a server environment (Node.js)
-        if (typeof process !== 'undefined' && process.env) {
-            console.log('Checking process.env...');
-            if (process.env.SUPABASE_ANON_KEY && process.env.SUPABASE_ANON_KEY.trim() !== '') {
-                console.log('✅ Found API key via process.env.SUPABASE_ANON_KEY');
-                return process.env.SUPABASE_ANON_KEY;
-            }
-            if (process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY.trim() !== '') {
-                console.log('✅ Found API key via process.env.SUPABASE_SERVICE_ROLE_KEY');
-                return process.env.SUPABASE_SERVICE_ROLE_KEY;
-            }
-        }
-        
-        console.log('❌ No API key found in environment variables');
-        return '';
-    }
-
-    promptForApiKey() {
-        const apiKey = prompt('Please enter your Supabase API key:');
-        if (apiKey) {
-            this.apiKey = apiKey;
-        } else {
-            this.showError('API key is required to upload files. Please set SUPABASE_ANON_KEY or SUPABASE_SERVICE_ROLE_KEY environment variable.');
-        }
+        // Initialize authentication manager
+        this.authManager = new AuthManager();
+        // Initialize Dodo Payments
+        this.dodoPayments = new DodoPayments(this.authManager);
     }
 
     handleDragOver(e) {
@@ -213,13 +90,11 @@ class FileUploadApp {
             
             const icon = this.getFileIcon(file.type);
             const size = this.formatFileSize(file.size);
-            const sanitizedName = this.sanitizeFileName(file.name);
             
             fileItem.innerHTML = `
                 <i class="fas ${icon} file-icon"></i>
                 <div class="file-details">
                     <div class="file-name">${file.name}</div>
-                    <div class="file-name-sanitized">Will be saved as: ${sanitizedName}</div>
                     <div class="file-size">${size}</div>
                 </div>
             `;
@@ -246,16 +121,6 @@ class FileUploadApp {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
-    sanitizeFileName(fileName) {
-        // Remove or replace characters that are not allowed in Supabase storage keys
-        return fileName
-            .replace(/[^a-zA-Z0-9._-]/g, '_')  // Replace special chars with underscore
-            .replace(/_{2,}/g, '_')            // Replace multiple underscores with single
-            .replace(/^_|_$/g, '')             // Remove leading/trailing underscores
-            .toLowerCase()                     // Convert to lowercase for consistency
-            .substring(0, 100);                // Limit length to prevent issues
-    }
-
     showFileInfo() {
         this.fileInfo.style.display = 'block';
         this.progressSection.style.display = 'none';
@@ -263,11 +128,6 @@ class FileUploadApp {
     }
 
     async uploadFiles() {
-        if (!this.apiKey) {
-            this.showError('API key is required. Please set SUPABASE_ANON_KEY or SUPABASE_SERVICE_ROLE_KEY environment variable.');
-            return;
-        }
-
         if (!this.authManager || !this.authManager.isUserAuthenticated()) {
             this.showError('Please login to upload files.');
             return;
@@ -282,163 +142,44 @@ class FileUploadApp {
         this.submitBtn.disabled = true;
 
         try {
-            // First, ensure the bucket exists
-            await this.ensureBucketExists();
+            // Create FormData to send files to backend
+            const formData = new FormData();
             
             for (let i = 0; i < this.selectedFiles.length; i++) {
-                const file = this.selectedFiles[i];
-                await this.uploadSingleFile(file, i + 1, this.selectedFiles.length);
+                formData.append('files', this.selectedFiles[i]);
             }
-            
-            this.showSuccess();
-        } catch (error) {
-            console.error('Upload error:', error);
-            
-            // Show specific error message for different error types
-            if (error.message.includes('not found')) {
-                this.showError(`Storage bucket not found. Please create a bucket named "uploads" in your Supabase dashboard. Go to Storage → Buckets → New Bucket.`);
-            } else if (error.message.includes('row-level security policy')) {
-                this.showError(`Upload blocked by security policy. Please check your Supabase storage policies. Go to Storage → Policies and allow anon access to the uploads bucket.`);
-            } else if (error.message.includes('Unauthorized')) {
-                this.showError(`Upload unauthorized. Please check your Supabase storage policies. Go to Storage → Policies and create a policy allowing anon uploads.`);
-            } else {
-                this.showError(`Upload failed: ${error.message}`);
+
+            // Get session token
+            const sessionToken = this.authManager.getSessionToken();
+            if (!sessionToken) {
+                throw new Error('No session token found. Please login again.');
             }
-        } finally {
-            this.submitBtn.disabled = false;
-        }
-    }
 
-    async ensureBucketExists() {
-        const bucketName = 'uploads';
-        const bucketUrl = `${this.supabaseUrl}/storage/v1/bucket/${bucketName}`;
-        
-        try {
-            // Check if bucket exists
-            const response = await fetch(bucketUrl, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${this.apiKey}`
-                }
-            });
-
-            if (response.status === 404) {
-                console.error('❌ Bucket "uploads" not found!');
-                console.log('📋 Please create the bucket manually:');
-                console.log('1. Go to your Supabase Dashboard');
-                console.log('2. Navigate to Storage → Buckets');
-                console.log('3. Click "New Bucket"');
-                console.log('4. Name it "uploads" and make it public');
-                console.log('5. Click "Create bucket"');
-                
-                throw new Error('Storage bucket "uploads" not found. Please create it manually in your Supabase dashboard.');
-            } else if (response.status === 400) {
-                console.warn('⚠️ Bucket check returned 400 - this might be due to RLS policies');
-                console.log('📋 Please check your storage policies:');
-                console.log('1. Go to Storage → Policies');
-                console.log('2. Make sure there are policies allowing anon access');
-                console.log('3. Or disable RLS for storage.objects table');
-                // Continue anyway - the upload might still work
-            } else if (!response.ok) {
-                console.warn('Could not check bucket status:', response.status);
-                // Continue anyway
-            } else {
-                console.log('✅ Bucket "uploads" exists');
-            }
-        } catch (error) {
-            if (error.message.includes('not found')) {
-                throw error; // Re-throw bucket not found errors
-            }
-            console.warn('Error checking bucket:', error);
-            // Continue anyway for other errors
-        }
-    }
-
-    async uploadSingleFile(file, currentIndex, totalFiles) {
-        // Generate unique filename with timestamp and sanitize it
-        const timestamp = Date.now();
-        const sanitizedOriginalName = this.sanitizeFileName(file.name);
-        const fileName = `${timestamp}_${sanitizedOriginalName}`;
-        
-        // Use the correct Supabase storage API endpoint
-        const bucketName = 'uploads'; // You can change this bucket name
-        const uploadUrl = `${this.supabaseUrl}/storage/v1/object/${bucketName}/${fileName}`;
-        
-        console.log('Original filename:', file.name);
-        console.log('Sanitized filename:', fileName);
-        console.log('Uploading to:', uploadUrl);
-        console.log('File size:', file.size);
-        
-        const response = await fetch(uploadUrl, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': file.type || 'application/octet-stream'
-            },
-            body: file
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Upload error response:', errorText);
-            throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
-        }
-
-        const result = await response.json();
-        console.log('Upload successful:', result);
-
-        // Track the upload in the database
-        await this.trackUserUpload(file, fileName);
-
-        // Update progress
-        const progress = (currentIndex / totalFiles) * 100;
-        this.updateProgress(progress, `Uploading ${currentIndex} of ${totalFiles} files...`);
-        
-        return result;
-    }
-
-    async trackUserUpload(file, fileName) {
-        if (!this.authManager || !this.authManager.isUserAuthenticated()) {
-            console.log('Skipping database tracking - user not authenticated');
-            return; // Don't track if user is not authenticated
-        }
-
-        try {
-            const user = this.authManager.getCurrentUser();
-            console.log('Tracking upload for user:', user);
-            
-            const trackingData = {
-                user_id: user.id,
-                file_name: file.name,
-                file_size: file.size,
-                file_type: file.type,
-                storage_path: `uploads/${fileName}`
-            };
-            
-            console.log('Sending tracking data:', trackingData);
-            
-            const response = await fetch(`${this.supabaseUrl}/rest/v1/user_uploads`, {
+            // Call backend API to upload files
+            const response = await fetch('/api/upload', {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${this.apiKey}`,
-                    'apikey': this.apiKey,
-                    'Content-Type': 'application/json',
-                    'Prefer': 'return=minimal'
+                    'Authorization': `Bearer ${sessionToken}`
                 },
-                body: JSON.stringify(trackingData)
+                body: formData
             });
 
-            console.log('Tracking response status:', response.status);
-
             if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Failed to track upload in database:', response.status, errorText);
-            } else {
-                console.log('✅ Upload tracked in database successfully');
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Upload failed');
             }
+
+            const result = await response.json();
+            console.log('Upload successful:', result);
+            
+            this.updateProgress(100, `Successfully uploaded ${result.files.length} files`);
+            this.showSuccess();
+            
         } catch (error) {
-            console.error('Error tracking upload:', error);
-            // Don't throw error - upload was successful, just tracking failed
+            console.error('Upload error:', error);
+            this.showError(`Upload failed: ${error.message}`);
+        } finally {
+            this.submitBtn.disabled = false;
         }
     }
 
@@ -497,8 +238,8 @@ class FileUploadApp {
         const paymentStatus = urlParams.get('payment');
         const checkoutId = urlParams.get('checkout_id');
 
-        if (paymentStatus === 'success' && checkoutId && this.dodoPayments) {
-            console.log('Payment success callback detected:', checkoutId);
+        if (paymentStatus === 'success' && this.dodoPayments) {
+            console.log('Payment success callback detected');
             this.dodoPayments.handlePaymentSuccess(checkoutId);
             
             // Clean up URL parameters
@@ -512,30 +253,3 @@ class FileUploadApp {
 document.addEventListener('DOMContentLoaded', () => {
     new FileUploadApp();
 });
-
-// Alternative upload method using Supabase client (if available)
-class SupabaseUploader {
-    constructor(apiKey) {
-        this.apiKey = apiKey;
-        this.supabaseUrl = 'https://pevqdguawonvpvnqqpnp.storage.supabase.co';
-    }
-
-    async uploadFile(file, bucket = 'uploads') {
-        const fileName = `${Date.now()}_${file.name}`;
-        
-        const response = await fetch(`${this.supabaseUrl}/storage/v1/object/${bucket}/${fileName}`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': file.type
-            },
-            body: file
-        });
-
-        if (!response.ok) {
-            throw new Error(`Upload failed: ${response.statusText}`);
-        }
-
-        return response.json();
-    }
-}

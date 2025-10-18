@@ -1,10 +1,10 @@
 // Authentication module for the file upload app
+// This module only handles UI and calls backend API endpoints
 class AuthManager {
-    constructor(supabaseUrl, apiKey) {
-        this.supabaseUrl = supabaseUrl;
-        this.apiKey = apiKey;
+    constructor() {
         this.currentUser = null;
         this.isAuthenticated = false;
+        this.sessionToken = null;
         
         this.initializeElements();
         this.bindEvents();
@@ -46,15 +46,19 @@ class AuthManager {
     }
 
     checkAuthStatus() {
+        // Check for saved session
+        const savedSession = localStorage.getItem('sessionToken');
         const savedUser = localStorage.getItem('currentUser');
-        if (savedUser) {
+        
+        if (savedSession && savedUser) {
             try {
+                this.sessionToken = savedSession;
                 this.currentUser = JSON.parse(savedUser);
                 this.isAuthenticated = true;
                 this.showAuthenticatedState();
             } catch (error) {
                 console.error('Error parsing saved user:', error);
-                localStorage.removeItem('currentUser');
+                this.clearSession();
             }
         } else {
             this.showUnauthenticatedState();
@@ -101,16 +105,33 @@ class AuthManager {
         }
 
         try {
-            const user = await this.authenticateUser(username, password);
-            if (user) {
-                this.currentUser = user;
-                this.isAuthenticated = true;
-                localStorage.setItem('currentUser', JSON.stringify(user));
-                this.showAuthenticatedState();
-                this.showMessage('Login successful!', 'success');
-            } else {
-                this.showMessage('Invalid username or password', 'error');
+            // Call backend API
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, password })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                this.showMessage(data.error || 'Login failed', 'error');
+                return;
             }
+
+            // Store session
+            this.sessionToken = data.sessionToken;
+            this.currentUser = data.user;
+            this.isAuthenticated = true;
+            
+            localStorage.setItem('sessionToken', this.sessionToken);
+            localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+            
+            this.showAuthenticatedState();
+            this.showMessage('Login successful!', 'success');
+            
         } catch (error) {
             console.error('Login error:', error);
             this.showMessage('Login failed. Please try again.', 'error');
@@ -141,153 +162,54 @@ class AuthManager {
         }
 
         try {
-            const user = await this.registerUser(username, email, password);
-            if (user) {
-                this.showMessage('Registration successful! Please login.', 'success');
-                this.showLoginForm();
-                this.clearRegisterForm();
-            }
-        } catch (error) {
-            console.error('Registration error:', error);
-            if (error.message.includes('already exists')) {
-                this.showMessage('Username or email already exists', 'error');
-            } else {
-                this.showMessage('Registration failed. Please try again.', 'error');
-            }
-        }
-    }
-
-    async authenticateUser(username, password) {
-        try {
-            // Hash the password (in a real app, you'd use a proper hashing library)
-            const passwordHash = await this.hashPassword(password);
-            
-            const response = await fetch(`${this.supabaseUrl}/rest/v1/users?username=eq.${username}&password_hash=eq.${passwordHash}&select=*`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${this.apiKey}`,
-                    'apikey': this.apiKey,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const users = await response.json();
-            return users.length > 0 ? users[0] : null;
-        } catch (error) {
-            console.error('Authentication error:', error);
-            throw error;
-        }
-    }
-
-    async registerUser(username, email, password) {
-        try {
-            console.log('Starting registration process...');
-            console.log('Username:', username);
-            console.log('Email:', email);
-            console.log('Supabase URL:', this.supabaseUrl);
-            console.log('API Key available:', !!this.apiKey);
-            
-            // Check if username or email already exists
-            console.log('Checking if user exists...');
-            const existingUser = await this.checkUserExists(username, email);
-            if (existingUser) {
-                throw new Error('User already exists');
-            }
-            console.log('User does not exist, proceeding with registration...');
-
-            // Hash the password
-            console.log('Hashing password...');
-            const passwordHash = await this.hashPassword(password);
-            console.log('Password hashed successfully');
-            
-            const requestBody = {
-                username: username,
-                email: email,
-                password_hash: passwordHash
-            };
-            
-            console.log('Sending registration request...');
-            console.log('Request body:', { ...requestBody, password_hash: '[HIDDEN]' });
-            
-            const response = await fetch(`${this.supabaseUrl}/rest/v1/users`, {
+            // Call backend API
+            const response = await fetch('/api/auth/register', {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${this.apiKey}`,
-                    'apikey': this.apiKey,
-                    'Content-Type': 'application/json',
-                    'Prefer': 'return=minimal'
+                    'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(requestBody)
+                body: JSON.stringify({ username, email, password })
             });
 
-            console.log('Response status:', response.status);
-            console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+            const data = await response.json();
 
             if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Registration failed with response:', errorText);
-                throw new Error(`Registration failed: ${errorText}`);
+                this.showMessage(data.error || 'Registration failed', 'error');
+                return;
             }
 
-            console.log('Registration successful!');
-            return { username, email, id: Date.now() }; // Return user object
+            this.showMessage('Registration successful! Please login.', 'success');
+            this.showLoginForm();
+            this.clearRegisterForm();
+            
         } catch (error) {
             console.error('Registration error:', error);
-            throw error;
+            this.showMessage('Registration failed. Please try again.', 'error');
         }
-    }
-
-    async checkUserExists(username, email) {
-        try {
-            const url = `${this.supabaseUrl}/rest/v1/users?or=(username.eq.${username},email.eq.${email})&select=username,email`;
-            console.log('Checking user exists with URL:', url);
-            
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${this.apiKey}`,
-                    'apikey': this.apiKey,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            console.log('Check user exists response status:', response.status);
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Check user exists failed:', errorText);
-                throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
-            }
-
-            const users = await response.json();
-            console.log('Found users:', users);
-            return users.length > 0;
-        } catch (error) {
-            console.error('Check user exists error:', error);
-            // If there's an error checking (like table doesn't exist), assume user doesn't exist
-            return false;
-        }
-    }
-
-    async hashPassword(password) {
-        // Simple hash function (in production, use a proper library like bcrypt)
-        const encoder = new TextEncoder();
-        const data = encoder.encode(password + 'salt'); // Add salt
-        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
     logout() {
-        this.currentUser = null;
-        this.isAuthenticated = false;
-        localStorage.removeItem('currentUser');
+        // Call backend API (optional - fire and forget)
+        if (this.sessionToken) {
+            fetch('/api/auth/logout', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.sessionToken}`
+                }
+            }).catch(err => console.error('Logout API call failed:', err));
+        }
+
+        this.clearSession();
         this.showUnauthenticatedState();
         this.showMessage('Logged out successfully', 'success');
+    }
+
+    clearSession() {
+        this.currentUser = null;
+        this.isAuthenticated = false;
+        this.sessionToken = null;
+        localStorage.removeItem('sessionToken');
+        localStorage.removeItem('currentUser');
     }
 
     showMessage(message, type) {
@@ -324,6 +246,10 @@ class AuthManager {
 
     getCurrentUser() {
         return this.currentUser;
+    }
+
+    getSessionToken() {
+        return this.sessionToken;
     }
 
     isUserAuthenticated() {
