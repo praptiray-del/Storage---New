@@ -292,7 +292,28 @@ app.post('/api/upload', requireAuth, upload.array('files', 10), async (req, res)
             console.log(`[UPLOAD] Processing file: ${file.originalname}`);
             console.log(`[UPLOAD] Sanitized name: ${fileName}`);
             console.log(`[UPLOAD] Size: ${file.size} bytes`);
-            console.log(`[UPLOAD] Mimetype: ${file.mimetype}`);
+            console.log(`[UPLOAD] Mimetype (raw): ${file.mimetype}`);
+            
+            // Fix wrong mimetype - detect from file extension if mimetype is multipart/form-data
+            let contentType = file.mimetype;
+            if (contentType === 'multipart/form-data' || !contentType) {
+                const ext = file.originalname.toLowerCase().split('.').pop();
+                const mimeTypes = {
+                    'jpg': 'image/jpeg',
+                    'jpeg': 'image/jpeg',
+                    'png': 'image/png',
+                    'gif': 'image/gif',
+                    'webp': 'image/webp',
+                    'pdf': 'application/pdf',
+                    'txt': 'text/plain',
+                    'mp4': 'video/mp4',
+                    'mp3': 'audio/mpeg',
+                    'zip': 'application/zip'
+                };
+                contentType = mimeTypes[ext] || 'application/octet-stream';
+                console.log(`[UPLOAD] Mimetype corrected: ${contentType} (detected from .${ext})`);
+            }
+            
             console.log(`[UPLOAD] Buffer exists: ${!!file.buffer}`);
             console.log(`[UPLOAD] Buffer length: ${file.buffer ? file.buffer.length : 0}`);
             
@@ -308,11 +329,12 @@ app.post('/api/upload', requireAuth, upload.array('files', 10), async (req, res)
             
             // Upload to Supabase Storage using official client
             console.log(`[UPLOAD] Uploading to Supabase Storage: ${bucketName}/${fileName}`);
+            console.log(`[UPLOAD] Using contentType: ${contentType}`);
             
             const { data: uploadData, error: uploadError } = await supabase.storage
                 .from(bucketName)
                 .upload(fileName, file.buffer, {
-                    contentType: file.mimetype || 'application/octet-stream',
+                    contentType: contentType,
                     upsert: false
                 });
             
@@ -337,7 +359,7 @@ app.post('/api/upload', requireAuth, upload.array('files', 10), async (req, res)
                         user_id: req.user.id,
                         file_name: file.originalname,
                         file_size: file.size,
-                        file_type: file.mimetype,
+                        file_type: contentType,
                         storage_path: `${bucketName}/${fileName}`
                     });
                 

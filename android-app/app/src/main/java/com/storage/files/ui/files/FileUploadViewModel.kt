@@ -48,10 +48,12 @@ class FileUploadViewModel : ViewModel() {
 
                 uris.forEach { uri ->
                     val fileName = getFileNameFromUri(context, uri)
+                    val mimeType = getMimeTypeFromUri(context, uri)
                     DebugLogger.log("UPLOAD", "Preparing file: $fileName")
+                    DebugLogger.log("UPLOAD", "Detected mimetype: $mimeType")
                     val file = createTempFileFromUri(context, uri)
                     file?.let {
-                        val requestBody = it.asRequestBody("multipart/form-data".toMediaTypeOrNull())
+                        val requestBody = it.asRequestBody(mimeType.toMediaTypeOrNull())
                         val part = MultipartBody.Part.createFormData(
                             "files",
                             fileName,
@@ -124,6 +126,31 @@ class FileUploadViewModel : ViewModel() {
             }
         }
         return fileName
+    }
+    
+    private fun getMimeTypeFromUri(context: Context, uri: Uri): String {
+        // Try to get mimetype from ContentResolver
+        val mimeType = context.contentResolver.getType(uri)
+        if (!mimeType.isNullOrEmpty()) {
+            return mimeType
+        }
+        
+        // Fallback: detect from file extension
+        val fileName = getFileNameFromUri(context, uri)
+        val extension = fileName.substringAfterLast('.', "").lowercase()
+        
+        return when (extension) {
+            "jpg", "jpeg" -> "image/jpeg"
+            "png" -> "image/png"
+            "gif" -> "image/gif"
+            "webp" -> "image/webp"
+            "pdf" -> "application/pdf"
+            "txt" -> "text/plain"
+            "mp4" -> "video/mp4"
+            "mp3" -> "audio/mpeg"
+            "zip" -> "application/zip"
+            else -> "application/octet-stream"
+        }
     }
 }
 
