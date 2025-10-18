@@ -270,8 +270,10 @@ app.post('/api/upload', requireAuth, upload.array('files', 10), async (req, res)
         }
         
         console.log(`Uploading ${req.files.length} files for user:`, req.user.username);
+        console.log('User ID:', req.user.id);
         
         const uploadedFiles = [];
+        const failedFiles = [];
         const supabaseUrl = process.env.SUPABASE_URL;
         const apiKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
         
@@ -282,10 +284,15 @@ app.post('/api/upload', requireAuth, upload.array('files', 10), async (req, res)
             const fileName = `${timestamp}_${sanitizedName}`;
             const bucketName = 'uploads';
             
-            console.log(`Uploading file: ${fileName}`);
+            console.log(`[UPLOAD] Processing file: ${file.originalname}`);
+            console.log(`[UPLOAD] Sanitized name: ${fileName}`);
+            console.log(`[UPLOAD] Size: ${file.size} bytes`);
+            console.log(`[UPLOAD] Mimetype: ${file.mimetype}`);
             
             // Upload to Supabase Storage
             const uploadUrl = `${supabaseUrl}/storage/v1/object/${bucketName}/${fileName}`;
+            console.log(`[UPLOAD] Uploading to: ${uploadUrl}`);
+            
             const uploadResponse = await fetch(uploadUrl, {
                 method: 'POST',
                 headers: {
@@ -295,18 +302,27 @@ app.post('/api/upload', requireAuth, upload.array('files', 10), async (req, res)
                 body: file.buffer
             });
             
+            console.log(`[UPLOAD] Storage response status: ${uploadResponse.status}`);
+            
             if (!uploadResponse.ok) {
                 const errorText = await uploadResponse.text();
-                console.error('Upload failed:', errorText);
+                console.error(`[UPLOAD] Storage upload failed for ${file.originalname}:`, errorText);
+                failedFiles.push({
+                    name: file.originalname,
+                    error: errorText
+                });
                 continue;
             }
             
             const uploadResult = await uploadResponse.json();
+            console.log(`[UPLOAD] Storage upload successful:`, uploadResult);
             
             // Track upload in database
             try {
                 const trackingUrl = `${supabaseUrl}/rest/v1/user_uploads`;
-                await fetch(trackingUrl, {
+                console.log(`[UPLOAD] Tracking in database...`);
+                
+                const trackingResponse = await fetch(trackingUrl, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${apiKey}`,
@@ -322,8 +338,25 @@ app.post('/api/upload', requireAuth, upload.array('files', 10), async (req, res)
                         storage_path: `${bucketName}/${fileName}`
                     })
                 });
+                
+                if (!trackingResponse.ok) {
+                    const trackError = await trackingResponse.text();
+                    console.error(`[UPLOAD] Database tracking failed:`, trackError);
+                    failedFiles.push({
+                        name: file.originalname,
+                        error: 'Failed to track in database: ' + trackError
+                    });
+                    continue;
+                }
+                
+                console.log(`[UPLOAD] Database tracking successful`);
             } catch (trackError) {
-                console.error('Failed to track upload:', trackError);
+                console.error('[UPLOAD] Failed to track upload:', trackError);
+                failedFiles.push({
+                    name: file.originalname,
+                    error: 'Database tracking error: ' + trackError.message
+                });
+                continue;
             }
             
             uploadedFiles.push({
@@ -334,12 +367,27 @@ app.post('/api/upload', requireAuth, upload.array('files', 10), async (req, res)
             });
         }
         
-        console.log(`Successfully uploaded ${uploadedFiles.length} files`);
-        res.json({ success: true, files: uploadedFiles });
+        console.log(`[UPLOAD] Results: ${uploadedFiles.length} succeeded, ${failedFiles.length} failed`);
+        
+        // Return error if ALL files failed
+        if (uploadedFiles.length === 0 && failedFiles.length > 0) {
+            console.error('[UPLOAD] All files failed to upload');
+            return res.status(500).json({ 
+                error: 'All files failed to upload', 
+                failures: failedFiles 
+            });
+        }
+        
+        // Return success with details about any failures
+        res.json({ 
+            success: true, 
+            files: uploadedFiles,
+            failures: failedFiles.length > 0 ? failedFiles : undefined
+        });
         
     } catch (error) {
-        console.error('Upload error:', error);
-        res.status(500).json({ error: 'Upload failed' });
+        console.error('[UPLOAD] Exception:', error);
+        res.status(500).json({ error: 'Upload failed: ' + error.message });
     }
 });
 
