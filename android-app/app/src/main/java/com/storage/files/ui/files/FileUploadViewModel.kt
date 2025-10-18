@@ -8,6 +8,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.storage.files.data.api.RetrofitClient
+import com.storage.files.util.DebugLogger
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -30,16 +31,30 @@ class FileUploadViewModel : ViewModel() {
             try {
                 _isUploading.value = true
                 _uploadProgress.value = 0
+                DebugLogger.log("UPLOAD", "Starting upload for ${uris.size} files")
+
+                // Check if session token is set
+                val prefs = context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
+                val token = prefs.getString("session_token", null)
+                DebugLogger.log("UPLOAD", "Session token: ${token?.take(10)}...")
+                
+                if (token.isNullOrEmpty()) {
+                    DebugLogger.log("UPLOAD", "ERROR: No session token found!")
+                    _uploadResult.value = Result.failure(Exception("Not authenticated"))
+                    return@launch
+                }
 
                 val fileParts = mutableListOf<MultipartBody.Part>()
 
                 uris.forEach { uri ->
+                    val fileName = getFileNameFromUri(context, uri)
+                    DebugLogger.log("UPLOAD", "Preparing file: $fileName")
                     val file = createTempFileFromUri(context, uri)
                     file?.let {
                         val requestBody = it.asRequestBody("multipart/form-data".toMediaTypeOrNull())
                         val part = MultipartBody.Part.createFormData(
                             "files",
-                            getFileNameFromUri(context, uri),
+                            fileName,
                             requestBody
                         )
                         fileParts.add(part)
@@ -47,12 +62,17 @@ class FileUploadViewModel : ViewModel() {
                 }
 
                 if (fileParts.isNotEmpty()) {
+                    DebugLogger.log("UPLOAD", "Sending ${fileParts.size} files to server...")
                     val response = RetrofitClient.apiService.uploadFiles(fileParts)
+                    DebugLogger.log("UPLOAD", "Response code: ${response.code()}")
                     
                     if (response.isSuccessful) {
+                        DebugLogger.log("UPLOAD", "Upload successful!")
                         _uploadResult.value = Result.success(Unit)
                     } else {
-                        _uploadResult.value = Result.failure(Exception("Upload failed: ${response.message()}"))
+                        val errorBody = response.errorBody()?.string() ?: response.message()
+                        DebugLogger.log("UPLOAD", "ERROR: Upload failed - $errorBody")
+                        _uploadResult.value = Result.failure(Exception("Upload failed: $errorBody"))
                     }
 
                     // Clean up temp files
@@ -64,9 +84,12 @@ class FileUploadViewModel : ViewModel() {
                         }
                     }
                 } else {
+                    DebugLogger.log("UPLOAD", "ERROR: No files to upload")
                     _uploadResult.value = Result.failure(Exception("No files to upload"))
                 }
             } catch (e: Exception) {
+                DebugLogger.log("UPLOAD", "EXCEPTION: ${e.message}")
+                e.printStackTrace()
                 _uploadResult.value = Result.failure(e)
             } finally {
                 _isUploading.value = false

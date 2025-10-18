@@ -36,6 +36,14 @@
             android:theme="@style/Theme.StorageFiles.NoActionBar"
             android:parentActivityName=".ui.main.MainActivity" />
 
+        <!-- Debug Activity -->
+        <activity
+            android:name=".ui.debug.DebugActivity"
+            android:exported="false"
+            android:label="Debug Logs"
+            android:theme="@style/Theme.StorageFiles.NoActionBar"
+            android:parentActivityName=".ui.main.MainActivity" />
+
         <!-- Login Activity -->
         <activity
             android:name=".ui.auth.LoginActivity"

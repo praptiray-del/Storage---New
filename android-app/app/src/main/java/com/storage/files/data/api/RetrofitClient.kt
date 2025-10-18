@@ -2,6 +2,7 @@ package com.storage.files.data.api
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.storage.files.util.DebugLogger
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -17,14 +18,25 @@ object RetrofitClient {
 
     fun setSessionToken(token: String?) {
         sessionToken = token
+        DebugLogger.log("RETROFIT", "Session token updated: ${token?.take(10)}...")
     }
 
     private val authInterceptor = Interceptor { chain ->
-        val requestBuilder = chain.request().newBuilder()
+        val request = chain.request()
+        DebugLogger.log("RETROFIT", "Request: ${request.method} ${request.url}")
+        
+        val requestBuilder = request.newBuilder()
         sessionToken?.let {
             requestBuilder.addHeader("Authorization", "Bearer $it")
+            DebugLogger.log("RETROFIT", "Added Auth header: Bearer ${it.take(10)}...")
+        } ?: run {
+            DebugLogger.log("RETROFIT", "WARNING: No session token set!")
         }
-        chain.proceed(requestBuilder.build())
+        
+        val newRequest = requestBuilder.build()
+        val response = chain.proceed(newRequest)
+        DebugLogger.log("RETROFIT", "Response code: ${response.code}")
+        response
     }
 
     private val loggingInterceptor = HttpLoggingInterceptor().apply {

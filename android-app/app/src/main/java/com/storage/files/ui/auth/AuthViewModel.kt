@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.storage.files.data.api.RetrofitClient
 import com.storage.files.data.model.User
+import com.storage.files.util.DebugLogger
 import kotlinx.coroutines.launch
 
 class AuthViewModel : ViewModel() {
@@ -26,22 +27,29 @@ class AuthViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 _isLoading.value = true
+                DebugLogger.log("AUTH", "Login attempt for user: $username")
 
                 // Call backend login API
                 val response = RetrofitClient.apiService.login(username, password)
+                DebugLogger.log("AUTH", "Login response code: ${response.code()}")
 
                 if (response.isSuccessful) {
                     val body = response.body()
                     val token = body?.get("sessionToken") as? String
                     val userData = body?.get("user") as? Map<*, *>
 
+                    DebugLogger.log("AUTH", "Token received: ${token?.take(10)}...")
+                    DebugLogger.log("AUTH", "User data: ${userData?.keys}")
+
                     if (token != null && userData != null) {
                         // Store token in SharedPreferences
                         val prefs = context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
                         prefs.edit().putString("session_token", token).apply()
+                        DebugLogger.log("AUTH", "Token stored in SharedPreferences")
                         
                         // Set token for API calls
                         RetrofitClient.setSessionToken(token)
+                        DebugLogger.log("AUTH", "Token set in RetrofitClient")
 
                         // Create user object
                         val user = User(
@@ -51,16 +59,20 @@ class AuthViewModel : ViewModel() {
                             isPremium = userData["is_premium"] as? Boolean ?: false
                         )
                         
+                        DebugLogger.log("AUTH", "Login successful for ${user.username}")
                         _currentUser.value = user
                         _loginResult.value = Result.success(user)
                     } else {
+                        DebugLogger.log("AUTH", "ERROR: Invalid response - missing token or user data")
                         _loginResult.value = Result.failure(Exception("Invalid response from server"))
                     }
                 } else {
                     val errorMessage = response.errorBody()?.string() ?: "Login failed"
+                    DebugLogger.log("AUTH", "ERROR: Login failed - $errorMessage")
                     _loginResult.value = Result.failure(Exception(errorMessage))
                 }
             } catch (e: Exception) {
+                DebugLogger.log("AUTH", "EXCEPTION: ${e.message}")
                 _loginResult.value = Result.failure(e)
             } finally {
                 _isLoading.value = false
